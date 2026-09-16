@@ -1,0 +1,39 @@
+services:
+  netclip:
+    build: .
+    image: netclip:latest
+    container_name: netclip
+    restart: unless-stopped
+
+    # Host networking, not a bridge with a port mapping.
+    #
+    # This is not about performance — it is so the server can see the machine's real
+    # network interfaces. Behind a bridge it can only see its own 172.x address, which no
+    # phone can reach, and the "Open on phone" QR code would then have to be told the
+    # right address by hand. Sharing the host's network stack means it just knows.
+    #
+    # Linux only. On Docker Desktop (macOS/Windows) delete this line and add back:
+    #   ports:
+    #     - "3210:3210"
+    # The QR is still correct there as long as you open netclip by the machine's LAN
+    # address rather than by localhost; if you do use localhost, netclip says so instead
+    # of showing a code that cannot work.
+    network_mode: host
+
+    volumes:
+      - netclip-data:/data
+
+    environment:
+      PORT: "3210"
+
+      # Unpinned items disappear this long after they were last copied. Pins never expire.
+      NETCLIP_RETENTION_DAYS: "7"
+      NETCLIP_IMAGE_RETENTION_DAYS: "3"
+
+      # Backstops so the box can't fill up. Pinned items are never evicted.
+      NETCLIP_MAX_ITEMS: "500"
+      NETCLIP_MAX_TOTAL_MB: "2048"
+      NETCLIP_MAX_UPLOAD_MB: "25"
+
+volumes:
+  netclip-data:

@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="netclip">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2a2a31" />
+      <stop offset="1" stop-color="#131317" />
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ff8a5b" />
+      <stop offset="1" stop-color="#ff5f56" />
+    </linearGradient>
+  </defs>
+
+  <rect width="512" height="512" rx="114" fill="url(#bg)" />
+  <rect x="6" y="6" width="500" height="500" rx="110" fill="none" stroke="#ffffff" stroke-opacity=".08" stroke-width="3" />
+
+  <!-- back sheet: the copy that travelled to the other device -->
+  <rect x="120" y="104" width="200" height="252" rx="34" fill="#ffffff" fill-opacity=".16" />
+  <!-- front sheet -->
+  <rect x="182" y="150" width="212" height="264" rx="38" fill="url(#accent)" />
+  <!-- the clip -->
+  <rect x="246" y="122" width="84" height="56" rx="24" fill="#ffffff" fill-opacity=".92" />
+  <rect x="262" y="106" width="52" height="44" rx="20" fill="#131317" />
+  <!-- lines of content -->
+  <g fill="#131317" fill-opacity=".55">
+    <rect x="222" y="238" width="132" height="20" rx="10" />
+    <rect x="222" y="286" width="96" height="20" rx="10" />
+    <rect x="222" y="334" width="116" height="20" rx="10" />
+  </g>
+</svg>

@@ -1,0 +1,31 @@
+{
+  "name": "netclip",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "LAN clipboard — Raycast-style clipboard history shared across your devices",
+  "workspaces": [
+    "server",
+    "web"
+  ],
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "test:serve": "NETCLIP_DATA_DIR=/tmp/netclip-test PORT=3299 node server/src/index.js",
+    "build": "npm --workspace web run build && node scripts/check-css.mjs",
+    "check:css": "node scripts/check-css.mjs",
+    "test": "node scripts/test-server.mjs http://127.0.0.1:3299 && node scripts/smoke.mjs http://127.0.0.1:3299 && node scripts/test-layout.mjs http://127.0.0.1:3299 --force",
+    "test:server": "node scripts/test-server.mjs http://127.0.0.1:3299",
+    "test:ui": "node scripts/smoke.mjs http://127.0.0.1:3299",
+    "start": "node server/src/index.js",
+    "docker:build": "docker build -t netclip:latest .",
+    "docker:run": "docker run -d --name netclip -p 3210:3210 -v netclip-data:/data --restart unless-stopped netclip:latest",
+    "test:layout": "node scripts/test-layout.mjs http://127.0.0.1:3299 --force"
+  },
+  "devDependencies": {
+    "jsdom": "^29.1.1",
+    "playwright-core": "^1.62.1"
+  }
+}

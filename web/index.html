@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>netclip</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="description" content="Your clipboard, shared across every device on this network." />
+    <meta name="color-scheme" content="dark light" />
+    <meta name="theme-color" content="#0d0d0f" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#f6f6f7" media="(prefers-color-scheme: light)" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="netclip" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="format-detection" content="telephone=no" />
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/icon-180.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <style>
+      /* Painted before React boots so there is never a white flash on a dark phone. */
+      html { background: #0d0d0f; }
+      @media (prefers-color-scheme: light) { html { background: #f6f6f7; } }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

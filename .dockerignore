@@ -1,0 +1,13 @@
+node_modules
+**/node_modules
+scripts/smoke.mjs
+scripts/test-server.mjs
+server/public
+data
+.git
+.gitignore
+*.log
+.DS_Store
+.env
+README.md
+docker-compose.yml
