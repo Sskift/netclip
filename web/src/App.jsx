@@ -44,8 +44,8 @@ const deepLinkId = () => {
   return match ? Number(match[1]) : null
 }
 
-export default function App() {
-  const nc = useNetclip()
+export default function App({ active = true, onOpenDrive }) {
+  const nc = useNetclip(active)
   const isDesktop = useIsDesktop()
 
   const [overlay, setOverlay] = useState(null)
@@ -55,6 +55,9 @@ export default function App() {
   const flashTimer = useRef(null)
 
   const closeOverlay = useCallback(() => setOverlay(null), [])
+  useEffect(() => {
+    if (!active) { setOverlay(null); setDropCount(0); dragDepth.current = 0 }
+  }, [active])
 
   const flashFooter = useCallback((message, kind = 'info') => {
     clearTimeout(flashTimer.current)
@@ -102,6 +105,7 @@ export default function App() {
   // Paste always sends. The one exception is a real compose surface, which owns its own
   // paste handling — anywhere else, including the omnibar, ⌘V means "send this".
   useEffect(() => {
+    if (!active) return
     const onPaste = (event) => {
       const active = document.activeElement
       if (active?.closest?.('.nc-compose, .nc-manual')) return
@@ -113,12 +117,12 @@ export default function App() {
     }
     document.addEventListener('paste', onPaste, true)
     return () => document.removeEventListener('paste', onPaste, true)
-  }, [send])
+  }, [active, send])
 
   // Drag & drop, with counter-based enter/leave tracking because dragleave also fires
   // for every child element the pointer crosses.
   useEffect(() => {
-    if (!isDesktop) return
+    if (!active || !isDesktop) return
 
     const hasPayload = (e) =>
       [...(e.dataTransfer?.types || [])].some((type) => type === 'Files' || type === 'text/plain')
@@ -154,7 +158,7 @@ export default function App() {
       window.removeEventListener('dragleave', onLeave)
       window.removeEventListener('drop', onDrop)
     }
-  }, [isDesktop, send, flashFooter])
+  }, [active, isDesktop, send, flashFooter])
 
   /* ------------------------------------------------------------------- ui */
 
@@ -252,7 +256,7 @@ export default function App() {
 
   return (
     <>
-      {isDesktop ? <Desktop nc={nc} ui={ui} /> : <Mobile nc={nc} ui={ui} />}
+      {isDesktop ? <Desktop nc={nc} ui={ui} active={active} /> : <Mobile nc={nc} ui={ui} />}
 
       {dropCount > 0 && <DropOverlay count={dropCount} />}
 
@@ -271,6 +275,7 @@ export default function App() {
       {overlay?.type === 'manual' && <ManualCopy text={overlay.text} onClose={closeOverlay} />}
       {overlay?.type === 'add' && (
         <AddSheet
+          onOpenDrive={onOpenDrive}
           onSend={(text) => send({ text })}
           onFiles={(files) => send({ files })}
           onClose={closeOverlay}

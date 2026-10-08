@@ -73,7 +73,7 @@ export default function Preview({ item, text, hasText, onFetchText }) {
             <div className="nc-caption">{t('hint.qrCaption')}</div>
           </div>
         ) : hasText ? (
-          <pre className="nc-preview-text" dir="auto" tabIndex={0}>
+          <pre className="nc-preview-text" data-mono={item.flavor === 'json'} dir="auto" tabIndex={0}>
             {text}
           </pre>
         ) : (

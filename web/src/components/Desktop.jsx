@@ -157,7 +157,7 @@ function Footer({ nc, flash, willSend }) {
 
 /* ----------------------------------------------------------------- shell */
 
-export default function Desktop({ nc, ui }) {
+export default function Desktop({ nc, ui, active = true }) {
   const inputRef = useRef(null)
   const rowRefs = useRef(new Map())
   const composing = useRef(false)
@@ -185,8 +185,9 @@ export default function Desktop({ nc, ui }) {
   }, [])
 
   useEffect(() => {
-    focusOmnibar()
-  }, [focusOmnibar])
+    if (active) focusOmnibar()
+    else setMenuOpen(false)
+  }, [active, focusOmnibar])
 
   // Keep the highlighted row on screen while arrow-keying.
   useEffect(() => {
@@ -258,10 +259,11 @@ export default function Desktop({ nc, ui }) {
   /* ------------------------------------------------------------ keyboard */
 
   useEffect(() => {
-    if (ui.modalOpen || menuOpen) return
+    if (!active || ui.modalOpen || menuOpen) return
 
     const onKey = (e) => {
       if (e.isComposing || composing.current) return
+      if (e.target.closest?.('[role="tablist"]')) return
       const mod = isMac ? e.metaKey : e.ctrlKey
       const inPreview = document.activeElement?.classList?.contains('nc-preview-text')
 
@@ -341,7 +343,7 @@ export default function Desktop({ nc, ui }) {
 
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [ui, menuOpen, move, query, items, selected, nc, sendQuery, copySelected, focusOmnibar])
+  }, [active, ui, menuOpen, move, query, items, selected, nc, sendQuery, copySelected, focusOmnibar])
 
   /* --------------------------------------------------------------- render */
 
@@ -351,15 +353,8 @@ export default function Desktop({ nc, ui }) {
   return (
     <div className="nc-desktop">
       <header className="nc-header nc-chrome">
-        <div className="nc-brand">
-          <img src="/icon.svg" alt="" />
-          netclip
-        </div>
+        <span className="nc-section-title">Clipboard history</span>
         <div className="nc-header-actions">
-          <a className="nc-header-btn nc-drive-link" href="/drive">
-            <Icon.Cloud />
-            {t('header.drive')}
-          </a>
           <button className="nc-header-btn" onClick={() => ui.openQr(origin)}>
             <Icon.Qr />
             {t('header.openOnPhone')}

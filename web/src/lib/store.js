@@ -24,7 +24,7 @@ const upsert = (list, item, q) => {
 
 const UNDO_MS = 6000
 
-export function useNetclip() {
+export function useNetclip(active = true) {
   const [items, setItems] = useState([])
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState('all')
@@ -109,17 +109,20 @@ export function useNetclip() {
 
   // Debounced so an IME composing Chinese doesn't fire a request per keystroke.
   useEffect(() => {
+    if (!active) return
     const timer = setTimeout(() => refresh(query), query ? 120 : 0)
     return () => clearTimeout(timer)
-  }, [query, refresh])
+  }, [active, query, refresh])
 
   useEffect(() => {
+    if (!active) return
     api.getInfo().then(setInfo).catch(() => {})
-  }, [])
+  }, [active])
 
   /* --------------------------------------------------------------- live feed */
 
   useEffect(() => {
+    if (!active) return
     const disconnect = api.connectEvents({
       onStatus: (status) => {
         setConnection(status === 'reconnecting' ? 'reconnecting' : 'live')
@@ -153,7 +156,7 @@ export function useNetclip() {
       disconnect()
       clearTimeout(refreshTimer.current)
     }
-  }, [refresh, scheduleRefresh])
+  }, [active, refresh, scheduleRefresh])
 
   /* ------------------------------------------------------- filtering + select */
 

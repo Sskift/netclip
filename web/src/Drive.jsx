@@ -5,13 +5,9 @@ import * as Icon from './components/Icons.jsx'
 import './drive.css'
 
 const tr = (zh, en) => lang === 'zh' ? zh : en
-const folderFromUrl = () => {
-  const id = Number(new URLSearchParams(location.search).get('folder'))
-  return Number.isSafeInteger(id) && id > 0 ? id : null
-}
 const listUrl = (id) => `/api/drive/entries${id ? `?parent=${id}` : ''}`
 const downloadUrl = (entry) => `/api/drive/entries/${entry.id}/download`
-const dateOf = (time) => new Date(time).toLocaleDateString(lang === 'zh' ? 'zh-CN' : undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+const dateOf = (time) => new Date(time).toLocaleDateString('en', { year: 'numeric', month: 'short', day: 'numeric' })
 const errorText = (error) => {
   if (/already exists/.test(error.message)) return tr('同一文件夹里已有这个名字，请换一个。', 'This name is already used in this folder.')
   if (/Failed to fetch|NetworkError/.test(error.message)) return tr('连接中断，请检查 Tailscale 连接后重试。', 'Connection lost. Check Tailscale and try again.')
@@ -31,8 +27,9 @@ function FileGlyph({ entry, large }) {
   </span>
 }
 
-export default function Drive() {
-  const [folderId, setFolderId] = useState(folderFromUrl)
+export default function Drive({ active = true, folderId, onNavigate }) {
+  const currentFolder = useRef(folderId), currentActive = useRef(active)
+  currentFolder.current = folderId; currentActive.current = active
   const [data, setData] = useState({ entries: [], breadcrumbs: [], stats: {}, maxUploadBytes: 512 * 1024 * 1024 })
   const [loading, setLoading] = useState(true)
   const [query, setQuery] = useState('')
@@ -53,9 +50,8 @@ export default function Drive() {
   const input = useRef(null), requests = useRef(new Map()), generation = useRef(0), dragDepth = useRef(0)
 
   const navigate = useCallback((id) => {
-    history.pushState({}, '', id ? `/drive?folder=${id}` : '/drive')
-    setFolderId(id); setQuery(''); setSelected(new Set()); setMenu(null)
-  }, [])
+    onNavigate(id); setQuery(''); setSelected(new Set()); setMenu(null)
+  }, [onNavigate])
   const refresh = useCallback(async () => {
     const ticket = ++generation.current
     try {
@@ -63,17 +59,13 @@ export default function Drive() {
       if (ticket === generation.current) { setData(next); setLoading(false) }
     } catch (error) {
       if (ticket !== generation.current) return
-      if (error.status === 404 && folderId) { navigate(null); return }
+      if (error.status === 404 && folderId && currentActive.current) { navigate(null); return }
       setNotice(errorText(error)); setLoading(false)
     }
   }, [folderId, navigate])
-  useEffect(() => { setLoading(true); refresh() }, [refresh])
+  useEffect(() => { if (active) { setLoading(true); refresh() } }, [active, refresh])
   useEffect(() => {
-    const back = () => { setFolderId(folderFromUrl()); setQuery(''); setSelected(new Set()) }
-    window.addEventListener('popstate', back)
-    return () => window.removeEventListener('popstate', back)
-  }, [])
-  useEffect(() => {
+    if (!active) return
     const stream = new EventSource('/api/events')
     stream.addEventListener('drive', refresh)
     stream.onopen = () => { setConnected(true); refresh() }
@@ -81,18 +73,19 @@ export default function Drive() {
     const visible = () => { if (document.visibilityState === 'visible') refresh() }
     document.addEventListener('visibilitychange', visible)
     return () => { stream.close(); document.removeEventListener('visibilitychange', visible) }
-  }, [refresh])
+  }, [active, refresh])
   useEffect(() => {
     if (!notice) return
     const timer = setTimeout(() => setNotice(''), 6500)
     return () => clearTimeout(timer)
   }, [notice])
   useEffect(() => {
+    if (!active) return
     const close = (e) => { if (!e.target.closest('.nd-menu, .nd-more')) setMenu(null) }
     const escape = (e) => { if (e.key === 'Escape') { setMenu(null); if (!busy) setDialog(null) } }
     document.addEventListener('pointerdown', close); document.addEventListener('keydown', escape)
     return () => { document.removeEventListener('pointerdown', close); document.removeEventListener('keydown', escape) }
-  }, [busy])
+  }, [active, busy])
   useEffect(() => {
     if (dialog?.type !== 'move') return
     let active = true
@@ -162,7 +155,7 @@ export default function Drive() {
       } catch (error) { update(job.id, { state: error.cancelled ? 'cancelled' : 'error', error: errorText(error) }) }
       finally { requests.current.delete(job.id) }
     }
-    if (folderFromUrl() === destination) refresh()
+    if (currentActive.current && currentFolder.current === destination) refresh()
   }
   const crumbs = (items, go) => <nav className="nd-crumbs" aria-label={tr('文件夹路径', 'Folder path')}>
     <button type="button" onClick={() => go(null)}>{tr('全部文件', 'All files')}</button>
@@ -175,11 +168,9 @@ export default function Drive() {
     onDragLeave={() => { if (--dragDepth.current <= 0) { dragDepth.current = 0; setDragging(false) } }}
     onDrop={(e) => { e.preventDefault(); dragDepth.current = 0; setDragging(false); if (e.dataTransfer.files.length) uploadFiles(e.dataTransfer.files) }}>
     <aside className="nd-sidebar">
-      <a className="nd-brand" href="/drive"><img src="/icon.svg" alt="" /><strong>netclip</strong><span>{tr('云盘', 'Drive')}</span></a>
       <div className="nd-workspace"><span className="nd-avatar">N</span><div><strong>{tr('我的空间', 'My space')}</strong><small>{tr('随时存取，自由整理', 'Your files, across devices')}</small></div></div>
       <nav className="nd-nav">
         <button className="nd-nav-active" onClick={() => navigate(null)}><Icon.Folder />{tr('全部文件', 'All files')}<span>{data.stats.files || 0}</span></button>
-        <a href="/"><Icon.Copy />{tr('剪贴板', 'Clipboard')}<Icon.External /></a>
       </nav>
       <div className="nd-storage"><Icon.Cloud /><strong>{formatBytes(data.stats.bytes || 0)}</strong><span>{tr('已使用空间', 'Stored in your drive')}</span><p>{tr('文件长期保存，不会自动过期。', 'Files stay here until you delete them.')}</p></div>
       <div className="nd-network"><i className={connected ? 'is-online' : ''} />{connected ? tr('设备间自动同步', 'Synced across devices') : tr('正在连接…', 'Connecting…')}</div>
@@ -187,7 +178,6 @@ export default function Drive() {
     <main className="nd-main">
       <header className="nd-topbar">
         {crumbs(data.breadcrumbs, navigate)}
-        <a href="/" className="nd-mobile-clipboard" aria-label={tr('剪贴板', 'Clipboard')}><Icon.Copy /></a>
         <label className="nd-search"><Icon.Search /><input value={query} onChange={(e) => { setQuery(e.target.value); setSelected(new Set()) }} placeholder={tr('搜索当前文件夹', 'Search this folder')} aria-label={tr('搜索当前文件夹', 'Search this folder')} />{query && <button onClick={() => setQuery('')} aria-label={tr('清除搜索', 'Clear search')}><Icon.Close /></button>}</label>
       </header>
       <section className="nd-heading">

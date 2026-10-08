@@ -174,7 +174,7 @@ export function Snackbar({ label, actionLabel, onAction, desktop }) {
 
 /* -------------------------------------------------------------- add sheet */
 
-export function AddSheet({ onSend, onFiles, onClose }) {
+export function AddSheet({ onSend, onFiles, onClose, onOpenDrive }) {
   const ref = useRef(null)
   const [empty, setEmpty] = useState(true)
 
@@ -228,10 +228,10 @@ export function AddSheet({ onSend, onFiles, onClose }) {
           }}
         />
         <div className="nc-compose-row">
-          <a className="nc-btn nc-drive-link" href="/drive">
+          <button className="nc-btn" onClick={() => { onClose(); onOpenDrive() }}>
             <Icon.Cloud />
             {t('header.drive')}
-          </a>
+          </button>
           <button className="nc-btn" onClick={() => pickFiles('image/*')}>
             <Icon.Image />
             {t('add.photos')}

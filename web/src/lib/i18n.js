@@ -1,23 +1,8 @@
 import { setTimeLocale } from './time.js'
 
-const STORAGE_KEY = 'nc.lang'
-
-const detect = () => {
-  const stored = localStorage.getItem(STORAGE_KEY)
-  if (stored === 'en' || stored === 'zh') return stored
-  return /^zh\b/i.test(navigator.language || '') ? 'zh' : 'en'
-}
-
-export let lang = detect()
-
-export function setLang(next) {
-  localStorage.setItem(STORAGE_KEY, next)
-  lang = next
-  setTimeLocale(next === 'zh' ? 'zh-CN' : 'en')
-  window.dispatchEvent(new Event('netclip:lang'))
-}
-
-setTimeLocale(lang === 'zh' ? 'zh-CN' : navigator.language || 'en')
+// Interface language is intentionally fixed; user content keeps its original text.
+export const lang = 'en'
+setTimeLocale('en')
 
 export const isMac = /Mac|iPhone|iPad|iPod/.test(navigator.platform || navigator.userAgent)
 export const MOD = isMac ? '⌘' : 'Ctrl'

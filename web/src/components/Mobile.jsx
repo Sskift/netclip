@@ -332,11 +332,7 @@ export default function Mobile({ nc, ui }) {
   return (
     <div className="nc-mobile">
       <header className="nc-mheader nc-chrome">
-        <div className="nc-brand">
-          <img src="/icon.svg" alt="" />
-          netclip
-        </div>
-        <a className="nc-header-btn nc-drive-link" href="/drive"><Icon.Cloud />{t('header.drive')}</a>
+        <span className="nc-section-title">Clipboard history</span>
         <span className="nc-mheader-status">
           <span className={`nc-dot${nc.connection === 'live' ? '' : ' nc-dot--off'}`} />
           {nc.connection === 'live' ? t('mobile.live') : t('mobile.reconnecting')}
