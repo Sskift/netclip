@@ -9,6 +9,8 @@ const base = {
   'aria-hidden': true,
 }
 
+export const Check = (p) => <svg {...base} {...p}><path d="m3 8 3.2 3.2L13 4.5" /></svg>
+
 export const Search = (p) => (
   <svg {...base} {...p}>
     <circle cx="7" cy="7" r="4.5" />

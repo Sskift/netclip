@@ -6,6 +6,7 @@ import { ageOpacity, highlight, safeUrl, terminalSnippet, titleOf } from '../lib
 import { phoneUrl } from '../lib/qr.js'
 import Preview from './Preview.jsx'
 import PageHeading from './PageHeading.jsx'
+import Menu from './Menu.jsx'
 import * as Icon from './Icons.jsx'
 
 const combo = (label) => (isMac ? MOD + label : `${MOD}+${label}`)
@@ -54,68 +55,6 @@ function Row({ item, selected, query, now, onSelect, onActivate }) {
       </span>
       <span className="nc-row-time">{relativeTime(item.updatedAt, now)}</span>
     </button>
-  )
-}
-
-/* ------------------------------------------------------------ action menu */
-
-function ActionMenu({ actions, onClose }) {
-  const [active, setActive] = useState(() => actions.findIndex((a) => !a.separator && !a.disabled))
-
-  useEffect(() => {
-    const onKey = (e) => {
-      if (e.key === 'Escape') return onClose()
-      const step = e.key === 'ArrowDown' ? 1 : e.key === 'ArrowUp' ? -1 : 0
-      if (step) {
-        e.preventDefault()
-        setActive((current) => {
-          let next = current
-          for (let i = 0; i < actions.length; i++) {
-            next = (next + step + actions.length) % actions.length
-            if (!actions[next].separator && !actions[next].disabled) return next
-          }
-          return current
-        })
-        return
-      }
-      if (e.key === 'Enter') {
-        e.preventDefault()
-        actions[active]?.run?.()
-        onClose()
-      }
-    }
-    window.addEventListener('keydown', onKey, true)
-    return () => window.removeEventListener('keydown', onKey, true)
-  }, [actions, active, onClose])
-
-  return (
-    <>
-      <div style={{ position: 'fixed', inset: 0, zIndex: 35 }} onMouseDown={onClose} />
-      <div className="nc-menu nc-chrome" role="menu">
-        {actions.map((action, i) =>
-          action.separator ? (
-            <div className="nc-menu-sep" key={action.key} />
-          ) : (
-            <button
-              key={action.key}
-              className={`nc-menu-item${action.danger ? ' nc-menu-item--danger' : ''}`}
-              data-active={i === active}
-              disabled={action.disabled}
-              onMouseEnter={() => setActive(i)}
-              onClick={() => {
-                action.run()
-                onClose()
-              }}
-            >
-              {action.icon}
-              <span>{action.label}</span>
-              <span className="nc-spacer" />
-              {action.hint && <span className="nc-kbd">{action.hint}</span>}
-            </button>
-          ),
-        )}
-      </div>
-    </>
   )
 }
 
@@ -441,7 +380,7 @@ export default function Desktop({ nc, ui, active = true }) {
 
       <Footer nc={nc} flash={nc.flashMessage || ui.footerFlash} willSend={willSend} />
 
-      {menuOpen && <ActionMenu actions={actions} onClose={() => setMenuOpen(false)} />}
+      {menuOpen && <Menu actions={actions} label="Clipboard actions" className="nc-menu--commands" onClose={() => setMenuOpen(false)} />}
     </div>
   )
 }

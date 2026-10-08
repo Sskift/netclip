@@ -57,8 +57,8 @@ function ancestors(id) {
 const conflict = (parent, name, except = -1) => db.prepare(
   'SELECT id FROM drive_entries WHERE parent_id IS ? AND name = ? COLLATE NOCASE AND id != ?',
 ).get(parent, name, except)
-function availableName(parent, name) {
-  const ext = extname(name), stem = name.slice(0, name.length - ext.length)
+function availableName(parent, name, isFolder = false) {
+  const ext = isFolder ? '' : extname(name), stem = name.slice(0, name.length - ext.length)
   let next = name
   for (let i = 2; conflict(parent, next); i++) next = `${stem} (${i})${ext}`
   return next
@@ -124,8 +124,10 @@ export async function handleDrive(req, res, url) {
       breadcrumbs: ancestors(parent), stats, maxUploadBytes: config.driveMaxUploadBytes })
   }
   if (url.pathname === '/api/drive/folders' && method === 'POST') {
-    const body = await bodyOf(req), parent = idOf(body.parentId), name = nameOf(body.name)
+    const body = await bodyOf(req), parent = idOf(body.parentId)
+    let name = nameOf(body.name)
     folder(parent)
+    if (body.autoRename === true) name = availableName(parent, name, true)
     if (conflict(parent, name)) throw new HttpError(409, 'A file or folder with this name already exists')
     const now = Date.now()
     const result = db.prepare("INSERT INTO drive_entries(parent_id,kind,name,created_at,updated_at) VALUES (?,'folder',?,?,?)").run(parent, name, now, now)

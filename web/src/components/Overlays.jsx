@@ -3,6 +3,7 @@ import { qrPath } from '../lib/qr.js'
 import { t } from '../lib/i18n.js'
 import { capabilities, readPaste } from '../lib/clipboard.js'
 import * as Icon from './Icons.jsx'
+import { MenuItems } from './Menu.jsx'
 
 /** Esc closes; the backdrop closes; focus is trapped loosely by autofocusing the panel. */
 function useDismiss(onClose) {
@@ -259,28 +260,8 @@ export function AddSheet({ onSend, onFiles, onClose, onOpenDrive }) {
 export function ActionSheet({ title, actions, onClose }) {
   return (
     <Sheet title={title} onClose={onClose}>
-      <div className="nc-sheet-list">
-        {actions.map((action) =>
-          action.separator ? (
-            <div className="nc-menu-sep" key={action.key} />
-          ) : (
-            <button
-              key={action.key}
-              className={`nc-sheet-item${action.danger ? ' nc-sheet-item--danger' : ''}`}
-              disabled={action.disabled}
-              onClick={() => {
-                // Close FIRST. Several actions open another overlay, and both calls land
-                // in the same React batch — closing afterwards would clobber whatever the
-                // action just opened, so "Show QR code" would silently do nothing.
-                onClose()
-                action.run()
-              }}
-            >
-              {action.icon}
-              {action.label}
-            </button>
-          ),
-        )}
+      <div className="nc-sheet-list" role="menu" aria-label={title}>
+        <MenuItems actions={actions} onChoose={(action) => { onClose(); action.run() }} />
       </div>
     </Sheet>
   )

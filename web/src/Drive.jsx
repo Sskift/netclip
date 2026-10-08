@@ -3,6 +3,8 @@ import { lang } from './lib/i18n.js'
 import { formatBytes } from './lib/time.js'
 import * as Icon from './components/Icons.jsx'
 import PageHeading from './components/PageHeading.jsx'
+import Menu from './components/Menu.jsx'
+import { selectedFiles, droppedFiles, folderResolver } from './lib/drive-import.js'
 import './drive.css'
 
 const tr = (zh, en) => lang === 'zh' ? zh : en
@@ -36,6 +38,7 @@ export default function Drive({ active = true, folderId, onNavigate }) {
   const [query, setQuery] = useState('')
   const [view, setView] = useState(() => localStorage.getItem('nc.drive.view') || 'list')
   const [sort, setSort] = useState('name')
+  const [reading, setReading] = useState(false)
   const [selected, setSelected] = useState(new Set())
   const [dialog, setDialog] = useState(null)
   const [name, setName] = useState('')
@@ -48,7 +51,7 @@ export default function Drive({ active = true, folderId, onNavigate }) {
   const [connected, setConnected] = useState(false)
   const [moveFolder, setMoveFolder] = useState(null)
   const [moveData, setMoveData] = useState({ entries: [], breadcrumbs: [] })
-  const input = useRef(null), requests = useRef(new Map()), generation = useRef(0), dragDepth = useRef(0)
+  const input = useRef(null), folderInput = useRef(null), requests = useRef(new Map()), generation = useRef(0), dragDepth = useRef(0)
 
   const navigate = useCallback((id) => {
     onNavigate(id); setQuery(''); setSelected(new Set()); setMenu(null)
@@ -81,11 +84,10 @@ export default function Drive({ active = true, folderId, onNavigate }) {
     return () => clearTimeout(timer)
   }, [notice])
   useEffect(() => {
-    if (!active) return
-    const close = (e) => { if (!e.target.closest('.nd-menu, .nd-more')) setMenu(null) }
-    const escape = (e) => { if (e.key === 'Escape') { setMenu(null); if (!busy) setDialog(null) } }
-    document.addEventListener('pointerdown', close); document.addEventListener('keydown', escape)
-    return () => { document.removeEventListener('pointerdown', close); document.removeEventListener('keydown', escape) }
+    if (!active) { setMenu(null); return }
+    const escape = (e) => { if (e.key === 'Escape' && !busy) setDialog(null) }
+    document.addEventListener('keydown', escape)
+    return () => document.removeEventListener('keydown', escape)
   }, [active, busy])
   useEffect(() => {
     if (dialog?.type !== 'move') return
@@ -106,10 +108,23 @@ export default function Drive({ active = true, folderId, onNavigate }) {
   const current = data.breadcrumbs.at(-1)
   const toggle = (id) => setSelected((old) => { const next = new Set(old); next.has(id) ? next.delete(id) : next.add(id); return next })
   const openDialog = (type, targets = []) => { setMenu(null); setFormError(''); setName(type === 'rename' ? targets[0].name : ''); setMoveFolder(null); setDialog({ type, targets }) }
-  const showMenu = (e, entry) => {
-    const box = e.currentTarget.getBoundingClientRect()
-    setMenu({ entry, x: Math.max(8, Math.min(box.right - 188, innerWidth - 196)), y: box.bottom + 160 > innerHeight ? Math.max(8, box.top - 152) : box.bottom + 6 })
+  const showMenu = (e, kind, entry) => {
+    const anchor = e.currentTarget
+    setMenu((old) => old?.anchor === anchor ? null : { kind, entry, anchor })
   }
+  const sortOptions = [['name', 'Name'], ['updated', 'Last modified'], ['size', 'Size']]
+  const menuActions = !menu ? [] : menu.kind === 'sort' ? sortOptions.map(([key, label]) => ({ key, label, checked: sort === key, run: () => setSort(key) }))
+    : menu.kind === 'upload' ? [
+      { key: 'files', label: 'Upload files', icon: <Icon.File />, run: () => input.current.click() },
+      { key: 'folder', label: 'Upload folder', icon: <Icon.Folder />, run: () => folderInput.current.click() },
+    ] : [
+      ...(menu.entry.kind === 'file' ? [{ key: 'download', label: 'Download', icon: <Icon.Download />, href: downloadUrl(menu.entry), download: menu.entry.name }] : []),
+      { key: 'rename', label: 'Rename', icon: <Icon.Edit />, run: () => openDialog('rename', [menu.entry]) },
+      { key: 'move', label: 'Move to…', icon: <Icon.Move />, run: () => openDialog('move', [menu.entry]) },
+      { key: 'separator', separator: true },
+      { key: 'delete', label: 'Delete', icon: <Icon.Trash />, danger: true, run: () => openDialog('delete', [menu.entry]) },
+    ]
+
   const patch = (entry, body) => api(`/api/drive/entries/${entry.id}`, { method: 'PATCH', body: JSON.stringify(body) })
   async function submit(event) {
     event?.preventDefault(); setBusy(true); setFormError('')
@@ -127,20 +142,30 @@ export default function Drive({ active = true, folderId, onNavigate }) {
     } catch (error) { setFormError(errorText(error)) }
     finally { setBusy(false); refresh() }
   }
-  async function uploadFiles(fileList) {
-    const destination = folderId
-    const batch = [...fileList].map((file) => ({ id: `${Date.now()}-${Math.random()}`, file, name: file.name, progress: 0, state: 'waiting' }))
+  async function uploadFiles(files, directories = [], destination = folderId) {
+    const ensureFolder = folderResolver(destination, async (name, parentId) => (await api('/api/drive/folders', {
+      method: 'POST', body: JSON.stringify({ name, parentId, autoRename: true }),
+    })).entry)
+    const batch = [...directories.map((path) => ({ path, kind: 'folder' })), ...files].map((entry) => ({
+      ...entry, id: `${Date.now()}-${Math.random()}`, name: entry.path, progress: 0, state: 'waiting',
+    }))
     setUploads((old) => [...old.filter((u) => !['done', 'error', 'cancelled'].includes(u.state)), ...batch])
     const update = (id, next) => setUploads((old) => old.map((u) => u.id === id ? { ...u, ...next } : u))
     for (const job of batch) {
-      if (job.file.size > data.maxUploadBytes) {
+      if (job.file && job.file.size > data.maxUploadBytes) {
         update(job.id, { state: 'error', error: tr('文件超过上传上限', 'File exceeds the upload limit') }); continue
       }
       update(job.id, { state: 'uploading' })
       try {
+        if (job.kind === 'folder') {
+          await ensureFolder(job.path)
+          update(job.id, { state: 'done', progress: 100 }); continue
+        }
+        const slash = job.path.lastIndexOf('/')
+        const parent = await ensureFolder(slash === -1 ? '' : job.path.slice(0, slash))
         await new Promise((resolve, reject) => {
           const xhr = new XMLHttpRequest(); requests.current.set(job.id, xhr)
-          xhr.open('POST', `/api/drive/upload${destination ? `?parent=${destination}` : ''}`)
+          xhr.open('POST', `/api/drive/upload${parent ? `?parent=${parent}` : ''}`)
           xhr.setRequestHeader('Content-Type', 'application/octet-stream')
           xhr.setRequestHeader('X-Filename', encodeURIComponent(job.file.name))
           xhr.upload.onprogress = (e) => { if (e.lengthComputable) update(job.id, { progress: Math.round(e.loaded / e.total * 100) }) }
@@ -158,6 +183,16 @@ export default function Drive({ active = true, folderId, onNavigate }) {
     }
     if (currentActive.current && currentFolder.current === destination) refresh()
   }
+  async function importDrop(transfer) {
+    const destination = folderId
+    setReading(true)
+    try {
+      const { files, directories } = await droppedFiles(transfer)
+      setReading(false)
+      await uploadFiles(files, directories, destination)
+    } catch (error) { setNotice(errorText(error)) }
+    finally { setReading(false) }
+  }
   const crumbs = (items, go) => <nav className="nd-crumbs" aria-label={tr('文件夹路径', 'Folder path')}>
     <button type="button" onClick={() => go(null)}>{tr('全部文件', 'All files')}</button>
     {items.map((p) => <span key={p.id}><Icon.Chevron /><button type="button" onClick={() => go(p.id)} title={p.name}>{p.name}</button></span>)}
@@ -167,7 +202,7 @@ export default function Drive({ active = true, folderId, onNavigate }) {
   return <div className="nd-app" onDragEnter={(e) => { if ([...e.dataTransfer.types].includes('Files')) { e.preventDefault(); dragDepth.current++; setDragging(true) } }}
     onDragOver={(e) => { if ([...e.dataTransfer.types].includes('Files')) e.preventDefault() }}
     onDragLeave={() => { if (--dragDepth.current <= 0) { dragDepth.current = 0; setDragging(false) } }}
-    onDrop={(e) => { e.preventDefault(); dragDepth.current = 0; setDragging(false); if (e.dataTransfer.files.length) uploadFiles(e.dataTransfer.files) }}>
+    onDrop={(e) => { e.preventDefault(); dragDepth.current = 0; setDragging(false); if ([...e.dataTransfer.types].includes('Files')) importDrop(e.dataTransfer) }}>
     <aside className="nd-sidebar">
       <div className="nd-workspace"><span className="nd-avatar">N</span><div><strong>{tr('我的空间', 'My space')}</strong><small>{tr('随时存取，自由整理', 'Your files, across devices')}</small></div></div>
       <nav className="nd-nav">
@@ -183,36 +218,39 @@ export default function Drive({ active = true, folderId, onNavigate }) {
       </header>
       <section className="nd-heading">
         <PageHeading eyebrow="NETCLIP DRIVE" title={current?.name || 'My files'} description="A place for everything you want to keep." />
-        <div className="nd-heading-actions"><button className="nd-button" onClick={() => openDialog('create')}><Icon.FolderPlus />{tr('新建文件夹', 'New folder')}</button><button className="nd-button nd-primary" onClick={() => input.current.click()}><Icon.Upload />{tr('上传文件', 'Upload files')}</button></div>
-        <input ref={input} type="file" multiple hidden onChange={(e) => { uploadFiles(e.target.files); e.target.value = '' }} />
+        <div className="nd-heading-actions"><button className="nd-button" onClick={() => openDialog('create')}><Icon.FolderPlus />{tr('新建文件夹', 'New folder')}</button><button className="nd-button nd-primary" aria-haspopup="menu" aria-expanded={menu?.kind === 'upload'} onClick={(e) => showMenu(e, 'upload')}><Icon.Upload />Upload<Icon.Expand /></button></div>
+        <input ref={input} type="file" multiple hidden onChange={(e) => { uploadFiles(selectedFiles(e.target.files)); e.target.value = '' }} />
+        <input ref={folderInput} type="file" webkitdirectory="" multiple hidden onChange={(e) => {
+          const files = selectedFiles(e.target.files)
+          if (files.length) uploadFiles(files)
+          else setNotice('No files found. To include empty folders, drag the folder into Drive.')
+          e.target.value = ''
+        }} />
       </section>
       <div className="nd-toolbar">
         {selected.size ? <div className="nd-selection"><strong>{tr(`已选择 ${selected.size} 项`, `${selected.size} selected`)}</strong><button onClick={() => openDialog('move', chosen)}><Icon.Move />{tr('移动', 'Move')}</button><button onClick={() => openDialog('delete', chosen)}><Icon.Trash />{tr('删除', 'Delete')}</button><button className="nd-clear" onClick={() => setSelected(new Set())} aria-label={tr('取消选择', 'Clear selection')}><Icon.Close /></button></div>
           : <span className="nd-count">{tr(`${entries.length} 个项目`, `${entries.length} items`)}</span>}
-        <div className="nd-view-tools"><select aria-label={tr('排序', 'Sort by')} value={sort} onChange={(e) => setSort(e.target.value)}><option value="name">{tr('按名称', 'Name')}</option><option value="updated">{tr('最近修改', 'Last modified')}</option><option value="size">{tr('按大小', 'Size')}</option></select><div className="nd-view-toggle">{['list', 'grid'].map((v) => <button key={v} className={view === v ? 'is-active' : ''} aria-label={v === 'list' ? tr('列表视图', 'List view') : tr('网格视图', 'Grid view')} aria-pressed={view === v} onClick={() => { setView(v); localStorage.setItem('nc.drive.view', v) }}>{v === 'list' ? <Icon.List /> : <Icon.Grid />}</button>)}</div></div>
+        <div className="nd-view-tools"><button className="nd-sort" aria-label="Sort by" aria-haspopup="menu" aria-expanded={menu?.kind === 'sort'} onClick={(e) => showMenu(e, 'sort')}><span>{sortOptions.find(([key]) => key === sort)[1]}</span><Icon.Expand /></button><div className="nd-view-toggle">{['list', 'grid'].map((v) => <button key={v} className={view === v ? 'is-active' : ''} aria-label={v === 'list' ? tr('列表视图', 'List view') : tr('网格视图', 'Grid view')} aria-pressed={view === v} onClick={() => { setView(v); localStorage.setItem('nc.drive.view', v) }}>{v === 'list' ? <Icon.List /> : <Icon.Grid />}</button>)}</div></div>
       </div>
       <div className="nd-content" aria-busy={loading}>
-        {loading ? <div className="nd-empty"><span className="nc-spinner" /><p>{tr('正在打开文件夹…', 'Opening folder…')}</p></div> : !entries.length ? <div className="nd-empty"><div className="nd-empty-icon">{query ? <Icon.Search /> : <Icon.Folder />}</div><h2>{query ? tr('没有找到匹配的文件', 'No matching files') : tr('从这里开始整理文件', 'Make room for your files')}</h2><p>{query ? tr('试试其他文件名。', 'Try a different filename.') : tr('拖入文件，或创建你的第一个文件夹。', 'Drop files here, or create your first folder.')}</p>{!query && <button className="nd-button nd-primary" onClick={() => input.current.click()}><Icon.Upload />{tr('选择文件上传', 'Choose files')}</button>}</div>
+        {loading ? <div className="nd-empty"><span className="nc-spinner" /><p>{tr('正在打开文件夹…', 'Opening folder…')}</p></div> : !entries.length ? <div className="nd-empty"><div className="nd-empty-icon">{query ? <Icon.Search /> : <Icon.Folder />}</div><h2>{query ? tr('没有找到匹配的文件', 'No matching files') : tr('从这里开始整理文件', 'Make room for your files')}</h2><p>{query ? tr('试试其他文件名。', 'Try a different filename.') : tr('拖入文件，或创建你的第一个文件夹。', 'Drop files or folders here to get started.')}</p>{!query && <button className="nd-button nd-primary" onClick={() => input.current.click()}><Icon.Upload />{tr('选择文件上传', 'Choose files')}</button>}</div>
           : view === 'list' ? <div className="nd-table" role="table" aria-label={tr('文件列表', 'Files')}>
             <div className="nd-row nd-table-head" role="row"><label><input type="checkbox" aria-label={tr('全选', 'Select all')} checked={entries.length > 0 && entries.every((e) => selected.has(e.id))} onChange={(e) => setSelected(e.target.checked ? new Set(entries.map((x) => x.id)) : new Set())} /></label><span>{tr('名称', 'Name')}</span><span className="nd-size">{tr('大小', 'Size')}</span><span className="nd-date">{tr('修改时间', 'Modified')}</span><span /></div>
             {entries.map((entry) => <div className={`nd-row${selected.has(entry.id) ? ' is-selected' : ''}`} key={entry.id} role="row">
               <label><input type="checkbox" aria-label={tr(`选择 ${entry.name}`, `Select ${entry.name}`)} checked={selected.has(entry.id)} onChange={() => toggle(entry.id)} /></label>
               <div className="nd-file-name"><FileGlyph entry={entry} />{entry.kind === 'folder' ? <button title={entry.name} onClick={() => navigate(entry.id)}>{entry.name}</button> : <a title={entry.name} href={downloadUrl(entry)} download={entry.name}>{entry.name}</a>}</div>
               <span className="nd-size">{entry.kind === 'folder' ? '—' : formatBytes(entry.bytes)}</span><span className="nd-date">{dateOf(entry.updatedAt)}</span>
-              <div className="nd-row-actions">{entry.kind === 'file' && <a href={downloadUrl(entry)} download={entry.name} aria-label={tr(`下载 ${entry.name}`, `Download ${entry.name}`)}><Icon.Download /></a>}<button className="nd-more" aria-label={tr(`更多操作 ${entry.name}`, `More actions ${entry.name}`)} onClick={(e) => showMenu(e, entry)}><Icon.More /></button></div>
+              <div className="nd-row-actions">{entry.kind === 'file' && <a href={downloadUrl(entry)} download={entry.name} aria-label={tr(`下载 ${entry.name}`, `Download ${entry.name}`)}><Icon.Download /></a>}<button className="nd-more" aria-label={tr(`更多操作 ${entry.name}`, `More actions ${entry.name}`)} aria-haspopup="menu" aria-expanded={menu?.entry?.id === entry.id} onClick={(e) => showMenu(e, 'entry', entry)}><Icon.More /></button></div>
             </div>)}
           </div> : <div className="nd-grid">{entries.map((entry) => <article key={entry.id} className={`nd-card${selected.has(entry.id) ? ' is-selected' : ''}`}>
-            <div className="nd-card-top"><input type="checkbox" aria-label={tr(`选择 ${entry.name}`, `Select ${entry.name}`)} checked={selected.has(entry.id)} onChange={() => toggle(entry.id)} /><button className="nd-more" aria-label={tr(`更多操作 ${entry.name}`, `More actions ${entry.name}`)} onClick={(e) => showMenu(e, entry)}><Icon.More /></button></div>
+            <div className="nd-card-top"><input type="checkbox" aria-label={tr(`选择 ${entry.name}`, `Select ${entry.name}`)} checked={selected.has(entry.id)} onChange={() => toggle(entry.id)} /><button className="nd-more" aria-label={tr(`更多操作 ${entry.name}`, `More actions ${entry.name}`)} aria-haspopup="menu" aria-expanded={menu?.entry?.id === entry.id} onClick={(e) => showMenu(e, 'entry', entry)}><Icon.More /></button></div>
             {entry.kind === 'folder' ? <button className="nd-card-link" onClick={() => navigate(entry.id)}><FileGlyph entry={entry} large /><strong>{entry.name}</strong></button> : <a className="nd-card-link" href={downloadUrl(entry)} download={entry.name}><FileGlyph entry={entry} large /><strong>{entry.name}</strong></a>}
             <footer><span>{entry.kind === 'folder' ? tr('文件夹', 'Folder') : formatBytes(entry.bytes)}</span><span>{dateOf(entry.updatedAt)}</span></footer>
           </article>)}</div>}
       </div>
       <footer className="nd-bottom-note"><Icon.Cloud />{tr('存放在你的云盘中 · 长期保留', 'Stored in your drive · No automatic expiry')}<span>{tr(`单文件上限 ${formatBytes(data.maxUploadBytes)}`, `Up to ${formatBytes(data.maxUploadBytes)} per file`)}</span></footer>
     </main>
-    {menu && <div className="nd-menu" style={{ left: menu.x, top: menu.y }} role="menu">
-      {menu.entry.kind === 'file' && <a role="menuitem" href={downloadUrl(menu.entry)} download={menu.entry.name} onClick={() => setMenu(null)}><Icon.Download />{tr('下载', 'Download')}</a>}
-      <button role="menuitem" onClick={() => openDialog('rename', [menu.entry])}><Icon.Edit />{tr('重命名', 'Rename')}</button><button role="menuitem" onClick={() => openDialog('move', [menu.entry])}><Icon.Move />{tr('移动到…', 'Move to…')}</button><button role="menuitem" className="nd-danger-text" onClick={() => openDialog('delete', [menu.entry])}><Icon.Trash />{tr('删除', 'Delete')}</button>
-    </div>}
+    {active && menu && <Menu key={menu.kind + (menu.entry?.id || '')} anchor={menu.anchor} label={menu.kind === 'sort' ? 'Sort by' : menu.kind === 'upload' ? 'Upload' : 'File actions'} actions={menuActions} onClose={() => setMenu(null)} />}
     {dialog && <div className="nd-scrim" onClick={(e) => { if (e.target === e.currentTarget && !busy) setDialog(null) }}><section className="nd-dialog" role="dialog" aria-modal="true" aria-labelledby="nd-dialog-title">
       <header><h2 id="nd-dialog-title">{dialog.type === 'create' ? tr('新建文件夹', 'New folder') : dialog.type === 'rename' ? tr('重命名', 'Rename') : dialog.type === 'move' ? tr('移动到文件夹', 'Move to folder') : tr('删除所选项目', 'Delete selected items')}</h2><button disabled={busy} onClick={() => setDialog(null)} aria-label={tr('关闭', 'Close')}><Icon.Close /></button></header>
       <form onSubmit={submit}>
@@ -223,8 +261,8 @@ export default function Drive({ active = true, folderId, onNavigate }) {
         <footer><button className="nd-button" type="button" disabled={busy} onClick={() => setDialog(null)}>{tr('取消', 'Cancel')}</button><button className={`nd-button ${dialog.type === 'delete' ? 'nd-danger' : 'nd-primary'}`} disabled={busy || ((dialog.type === 'create' || dialog.type === 'rename') && !name.trim())} type="submit">{busy ? tr('处理中…', 'Working…') : dialog.type === 'move' ? tr('移动到这里', 'Move here') : dialog.type === 'delete' ? tr('删除', 'Delete') : tr('保存', 'Save')}</button></footer>
       </form>
     </section></div>}
-    {!!uploads.length && <section className="nd-uploads" aria-label={tr('上传任务', 'Uploads')}><header><strong>{activeUploads ? tr(`正在上传 ${activeUploads} 个文件`, `Uploading ${activeUploads} files`) : tr('上传任务', 'Uploads')}</strong><button onClick={() => setUploads((old) => old.filter((u) => ['uploading', 'waiting'].includes(u.state)))} aria-label={tr('清除已完成任务', 'Clear completed uploads')}><Icon.Close /></button></header><div className="nd-upload-list">{uploads.map((u) => <div className="nd-upload" key={u.id}><Icon.File /><div><strong title={u.name}>{u.name}</strong><span>{u.state === 'done' ? tr('已保存', 'Saved') : u.state === 'waiting' ? tr('等待上传', 'Waiting') : u.state === 'uploading' ? (u.progress === 100 ? tr('正在保存…', 'Saving…') : `${u.progress}%`) : u.error}</span>{u.state === 'uploading' && <progress value={u.progress} max="100" />}</div>{u.state === 'uploading' && <button onClick={() => requests.current.get(u.id)?.abort()} aria-label={tr(`取消上传 ${u.name}`, `Cancel upload ${u.name}`)}><Icon.Close /></button>}</div>)}</div></section>}
-    {dragging && <div className="nd-drop-overlay"><Icon.Upload /><h2>{tr('松手上传到当前文件夹', 'Drop files into this folder')}</h2><p>{current?.name || tr('全部文件', 'All files')}</p></div>}
+    {(reading || !!uploads.length) && <section className="nd-uploads" aria-label={tr('上传任务', 'Uploads')}><header><strong>{reading ? 'Reading folder…' : activeUploads ? tr(`正在上传 ${activeUploads} 个文件`, `Uploading ${activeUploads} items`) : tr('上传任务', 'Uploads')}</strong><button onClick={() => setUploads((old) => old.filter((u) => ['uploading', 'waiting'].includes(u.state)))} aria-label={tr('清除已完成任务', 'Clear completed uploads')}><Icon.Close /></button></header><div className="nd-upload-list">{uploads.map((u) => <div className="nd-upload" key={u.id}>{u.kind === 'folder' ? <Icon.Folder /> : <Icon.File />}<div><strong title={u.name}>{u.name}</strong><span>{u.state === 'done' ? tr('已保存', 'Saved') : u.state === 'waiting' ? tr('等待上传', 'Waiting') : u.state === 'uploading' ? (u.progress === 100 ? tr('正在保存…', 'Saving…') : `${u.progress}%`) : u.error}</span>{u.state === 'uploading' && <progress value={u.progress} max="100" />}</div>{u.state === 'uploading' && u.kind !== 'folder' && <button onClick={() => requests.current.get(u.id)?.abort()} aria-label={tr(`取消上传 ${u.name}`, `Cancel upload ${u.name}`)}><Icon.Close /></button>}</div>)}</div></section>}
+    {dragging && <div className="nd-drop-overlay"><Icon.Upload /><h2>{tr('松手上传到当前文件夹', 'Drop files or folders here')}</h2><p>{current?.name || tr('全部文件', 'All files')}</p></div>}
     {notice && <div className="nd-toast" role="status">{notice}<button onClick={() => setNotice('')} aria-label={tr('关闭', 'Close')}><Icon.Close /></button></div>}
   </div>
 }

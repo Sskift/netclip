@@ -626,33 +626,39 @@ mark {
 
 .nc-menu {
   position: fixed;
-  right: var(--nc-sp-4);
-  bottom: calc(var(--nc-h-footer) + var(--nc-sp-2));
   z-index: var(--nc-z-sheet);
-  min-width: 264px;
-  padding: var(--nc-sp-2);
+  min-width: 188px;
+  max-width: calc(100vw - 16px);
+  max-height: calc(100dvh - 16px);
+  overflow-y: auto;
+  padding: 5px;
   border: 1px solid var(--nc-border-strong);
-  border-radius: var(--nc-r-lg);
+  border-radius: 10px;
   background: var(--nc-bg-overlay);
-  box-shadow: var(--nc-shadow-lg);
-  animation: nc-pop var(--nc-dur-fast) var(--nc-ease-out);
+  color: var(--nc-text);
+  box-shadow: var(--nc-shadow-md);
 }
+.nc-menu--commands { right: 28px; bottom: 46px; min-width: 264px; }
 .nc-menu-item {
   display: flex;
   align-items: center;
-  gap: var(--nc-sp-3);
+  gap: 9px;
   width: 100%;
-  height: 32px;
-  padding: 0 var(--nc-sp-3);
-  border-radius: var(--nc-r-md);
+  min-height: 34px;
+  padding: 7px 9px;
+  border-radius: 6px;
+  color: inherit;
   text-align: left;
-  font-size: var(--nc-fs-13);
+  text-decoration: none;
+  font: 12px/1.5 var(--nc-font-sans);
+  cursor: pointer;
 }
-.nc-menu-item[data-active="true"] { background: var(--nc-bg-selected); }
-.nc-menu-item[disabled] { opacity: 0.35; }
+.nc-menu-item:not(:disabled):hover, .nc-menu-item:not(:disabled):focus { outline: none; background: var(--nc-bg-hover); }
+.nc-menu-item[disabled] { opacity: 0.35; cursor: default; }
 .nc-menu-item--danger { color: var(--nc-danger); }
 .nc-menu-item .nc-spacer { flex: 1; }
-.nc-menu-sep { height: 1px; margin: var(--nc-sp-2) var(--nc-sp-3); background: var(--nc-border); }
+.nc-menu-sep { height: 1px; margin: 4px 9px; background: var(--nc-border); }
+@media (pointer: coarse), (max-width: 700px) { .nc-menu-item { min-height: 40px; } }
 
 @keyframes nc-pop {
   from { opacity: 0; transform: translateY(4px) scale(0.98); }
@@ -1090,7 +1096,8 @@ mark {
   border-bottom: 1px solid var(--nc-border);
 }
 .nc-sheet-body { padding: var(--nc-sp-4); overflow: auto; }
-.nc-sheet-list { padding: var(--nc-sp-2); }
+.nc-sheet-list { padding: 5px; }
+.nc-sheet-list .nc-menu-item { min-height: 44px; padding-left: 12px; padding-right: 12px; }
 .nc-sheet-item {
   display: flex;
   align-items: center;
