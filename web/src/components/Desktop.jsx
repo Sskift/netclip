@@ -5,6 +5,7 @@ import { dayGroup, relativeTime } from '../lib/time.js'
 import { ageOpacity, highlight, safeUrl, terminalSnippet, titleOf } from '../lib/format.js'
 import { phoneUrl } from '../lib/qr.js'
 import Preview from './Preview.jsx'
+import PageHeading from './PageHeading.jsx'
 import * as Icon from './Icons.jsx'
 
 const combo = (label) => (isMac ? MOD + label : `${MOD}+${label}`)
@@ -353,7 +354,7 @@ export default function Desktop({ nc, ui, active = true }) {
   return (
     <div className="nc-desktop">
       <header className="nc-header nc-chrome">
-        <span className="nc-section-title">Clipboard history</span>
+        <PageHeading eyebrow="NETCLIP CLIPBOARD" title="Clipboard" description="Text, links, and images. Ready on every device." />
         <div className="nc-header-actions">
           <button className="nc-header-btn" onClick={() => ui.openQr(origin)}>
             <Icon.Qr />

@@ -24,8 +24,8 @@
   font-display: swap;
   unicode-range: U+2E80-9FFF, U+F900-FAFF, U+FE10-FE6F, U+FF00-FFEF, U+20000-3FFFF;
 }
-.nw-workspace { --nw-header-height: 68px; display: flex; flex-direction: column; height: 100dvh; overflow: hidden; }
-.nw-header { display: flex; align-items: center; gap: 44px; flex: 0 0 var(--nw-header-height); padding: 0 28px; border-bottom: 1px solid var(--nc-border); background: var(--nc-bg); }
+.nw-workspace { --nw-header-height: 60px; display: flex; flex-direction: column; height: 100dvh; overflow: hidden; }
+.nw-header { display: flex; align-items: center; gap: 32px; flex: 0 0 var(--nw-header-height); padding: 0 24px; border-bottom: 1px solid var(--nc-border); background: var(--nc-bg); }
 .nw-brand { display: flex; align-items: center; gap: 10px; }
 .nw-brand img { width: 26px; height: 26px; }
 .nw-brand strong { font-size: 21px; font-weight: 600; letter-spacing: -.8px; }
@@ -38,12 +38,12 @@
 .nw-panel[hidden] { display: none; }
 .nc-section-title { font-size: 12px; font-weight: 500; color: var(--nc-text-secondary); }
 .nw-workspace .nd-app { min-height: 100%; }
-.nw-workspace .nd-sidebar { height: calc(100dvh - var(--nw-header-height)); padding-top: 30px; }
-.nw-workspace .nd-heading h1 { font-family: var(--nc-font-serif); font-weight: 400; font-size: 30px; letter-spacing: -.8px; }
+.nw-workspace .nd-sidebar { height: calc(100dvh - var(--nw-header-height)); padding-top: 24px; }
+.nw-workspace .nd-heading h1 { font-family: var(--nc-font-serif); font-weight: 400; font-size: 27px; letter-spacing: -.8px; }
 .nw-workspace .nd-empty h2 { font-family: var(--nc-font-serif); font-weight: 400; font-size: 22px; line-height: 1.5; }
 .nw-workspace .nd-main { min-height: calc(100dvh - var(--nw-header-height)); }
 @media (max-width: 700px) {
-  .nw-workspace { --nw-header-height: 64px; }
+  .nw-workspace { --nw-header-height: 58px; }
   .nw-header { padding: 0 14px; gap: 14px; justify-content: space-between; }
   .nw-brand { gap: 7px; }
   .nw-brand img { width: 22px; height: 22px; }
@@ -52,7 +52,7 @@
   .nw-tabs button { padding: 8px 10px; gap: 6px; font-size: 12px; }
   .nw-tabs .nc-icon { width: 14px; height: 14px; }
   .nw-tagline { display: none; }
-  .nw-workspace .nd-heading h1 { font-size: 26px; }
+  .nw-workspace .nd-heading h1 { font-size: 24px; }
   .nw-workspace .nd-empty h2 { font-size: 20px; }
 }
 @media (max-width: 360px) {
@@ -62,3 +62,85 @@
 }
 .nw-workspace .nc-preview-text { font-family: var(--nc-font-sans); }
 .nw-workspace .nc-preview-text[data-mono=true] { font-family: var(--nc-font-mono); }
+
+/* Shared surfaces and controls across Clipboard and Drive. */
+.nw-workspace { --nw-radius: 10px; }
+.nw-brand img { filter: grayscale(1); }
+.nw-page-heading { min-width: 0; }
+.nw-eyebrow { font-size: 10px; font-weight: 600; letter-spacing: 2px; color: var(--nc-text-tertiary); }
+.nw-workspace .nw-page-heading h1 { font-family: var(--nc-font-serif); font-size: 27px; line-height: 1.3; font-weight: 400; letter-spacing: -.8px; margin: 7px 0 6px; overflow-wrap: anywhere; }
+.nw-workspace .nw-page-heading p { font-size: 12px; line-height: 1.5; color: var(--nc-text-secondary); margin: 0; }
+.nw-workspace .nc-btn, .nw-workspace .nd-button { border-radius: var(--nw-radius); min-height: 38px; font-size: 12px; font-weight: 500; }
+.nw-workspace .nc-btn:not(.nc-btn--primary), .nw-workspace .nd-button:not(.nd-primary):not(.nd-danger) { background: var(--nc-bg); border-color: var(--nc-border-strong); }
+.nw-workspace .nc-btn:not(.nc-btn--primary):hover, .nw-workspace .nd-button:not(.nd-primary):not(.nd-danger):hover { background: var(--nc-bg-hover); }
+.nw-workspace .nc-desktop { padding: 0 28px; grid-template-rows: 112px 52px minmax(0,1fr) 38px; }
+.nw-workspace .nc-header { padding: 18px 0; border: 0; gap: 24px; }
+.nw-workspace .nc-header-btn { border: 1px solid var(--nc-border-strong); border-radius: var(--nw-radius); height: 38px; color: var(--nc-text); }
+.nw-workspace .nc-omnibar, .nw-workspace .nd-search { background: var(--nc-bg-raised); border: 1px solid var(--nc-border); border-radius: var(--nw-radius); }
+.nw-workspace .nc-omnibar { height: 42px; padding: 0 13px; }
+.nw-workspace .nc-omnibar input { font-size: 13px; }
+.nw-workspace .nd-search { min-height: 40px; }
+.nw-workspace .nc-body { border: 1px solid var(--nc-border); border-radius: 12px; overflow: hidden; grid-template-columns: minmax(280px, 34%) minmax(0,1fr); }
+.nw-workspace .nc-list, .nw-workspace .nc-section { background: var(--nc-bg-raised); }
+.nw-workspace .nc-section { height: 38px; font-size: 10px; font-weight: 500; letter-spacing: 1.5px; }
+.nw-workspace .nc-row { width: calc(100% - 16px); margin: 2px 8px; padding: 0 12px; border-radius: 8px; }
+.nw-workspace .nc-row[data-selected=true]::before { display: none; }
+.nw-workspace .nc-preview-header { min-height: 44px; }
+.nw-workspace .nc-preview-text { line-height: 1.7; }
+.nw-workspace .nc-footer { border: 0; padding: 0; background: var(--nc-bg); font-size: 11px; }
+.nw-workspace .nc-empty-title { font-family: var(--nc-font-serif); font-size: 22px; font-weight: 400; line-height: 1.5; }
+.nw-workspace .nd-table { border: 1px solid var(--nc-border); border-radius: 12px; overflow: hidden; }
+.nw-workspace .nd-table-head { border-radius: 0; margin-bottom: 0; }
+.nw-workspace .nd-row:last-child { border-bottom: 0; }
+.nw-workspace .nd-card, .nw-workspace .nc-card { border-radius: 12px; background: var(--nc-bg-raised); }
+.nw-workspace .nd-dialog, .nw-workspace .nc-modal, .nw-workspace .nc-sheet { border-radius: 14px; }
+.nw-workspace .nd-name-field input, .nw-workspace .nc-compose { border-radius: var(--nw-radius); border-color: var(--nc-border-strong); background: var(--nc-bg-input); }
+.nw-workspace .nd-bottom-note { font-size: 11px; }
+@media (max-width: 1000px) and (min-width: 820px) {
+  .nw-workspace .nc-desktop { padding: 0 24px; }
+  .nw-workspace .nc-footer-hints { gap: 8px; }
+}
+@media (max-width: 819px) {
+  .nw-workspace .nc-mheader { height: 106px; padding: 16px 18px; align-items: center; gap: 16px; border-bottom: 0; }
+  .nw-workspace .nc-mheader .nw-page-heading h1 { font-size: 24px; }
+  .nw-workspace .nc-feed { padding-left: 18px; padding-right: 18px; padding-top: 0; }
+  .nw-workspace .nc-card--fresh { border-color: var(--nc-border-strong); box-shadow: var(--nc-shadow-sm); }
+  .nw-workspace .nc-mbar { background: var(--nc-bg); }
+}
+@media (max-width: 700px) {
+  .nw-workspace .nw-page-heading h1 { font-size: 24px; }
+  .nw-workspace .nd-bottom-note { font-size: 10px; }
+}
+
+/* Compact spacing, shared by both views. */
+.nw-workspace .nd-sidebar { width: 208px; flex-basis: 208px; padding-left: 16px; padding-right: 16px; }
+.nw-workspace .nd-workspace { margin-bottom: 20px; }
+.nw-workspace .nd-nav > * { padding: 10px 12px; }
+.nw-workspace .nd-main { padding-left: 28px; padding-right: 28px; }
+.nw-workspace .nd-topbar { min-height: 64px; gap: 18px; }
+.nw-workspace .nd-heading { padding: 24px 0 20px; gap: 18px; }
+.nw-workspace .nd-toolbar { min-height: 40px; margin-bottom: 10px; }
+.nw-workspace .nd-row { min-height: 56px; gap: 12px; }
+.nw-workspace .nd-table-head { min-height: 34px; }
+.nw-workspace .nd-glyph { width: 30px; height: 34px; }
+.nw-workspace .nd-glyph .nc-icon { width: 19px; height: 19px; }
+.nw-workspace .nd-glyph--large { width: 46px; height: 50px; }
+.nw-workspace .nd-glyph--large .nc-icon { width: 28px; height: 28px; }
+.nw-workspace .nd-grid { gap: 12px; }
+.nw-workspace .nd-card { padding: 8px 14px 12px; }
+.nw-workspace .nd-card-link strong { margin: 12px 0 8px; }
+.nw-workspace .nd-content, .nw-workspace .nd-empty { min-height: 280px; }
+.nw-workspace .nd-empty { padding-top: 28px; padding-bottom: 28px; }
+.nw-workspace .nd-bottom-note { padding-top: 20px; padding-bottom: 20px; }
+@media (max-width: 700px) {
+  .nw-workspace .nd-main { padding-left: 18px; padding-right: 18px; }
+  .nw-workspace .nd-topbar { padding: 12px 0; gap: 6px; }
+  .nw-workspace .nd-search { margin-top: 6px; padding: 9px 12px; }
+  .nw-workspace .nd-heading { padding: 20px 0 16px; gap: 16px; }
+  .nw-workspace .nd-heading-actions > * { min-height: 40px; }
+  .nw-workspace .nd-row { gap: 8px; min-height: 56px; }
+  .nw-workspace .nd-table-head { min-height: 34px; }
+  .nw-workspace .nd-grid { gap: 10px; }
+  .nw-workspace .nd-card { padding-left: 12px; padding-right: 12px; }
+  .nw-workspace .nd-content, .nw-workspace .nd-empty { min-height: 240px; }
+}

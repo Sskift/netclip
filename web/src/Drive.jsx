@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { lang } from './lib/i18n.js'
 import { formatBytes } from './lib/time.js'
 import * as Icon from './components/Icons.jsx'
+import PageHeading from './components/PageHeading.jsx'
 import './drive.css'
 
 const tr = (zh, en) => lang === 'zh' ? zh : en
@@ -181,7 +182,7 @@ export default function Drive({ active = true, folderId, onNavigate }) {
         <label className="nd-search"><Icon.Search /><input value={query} onChange={(e) => { setQuery(e.target.value); setSelected(new Set()) }} placeholder={tr('搜索当前文件夹', 'Search this folder')} aria-label={tr('搜索当前文件夹', 'Search this folder')} />{query && <button onClick={() => setQuery('')} aria-label={tr('清除搜索', 'Clear search')}><Icon.Close /></button>}</label>
       </header>
       <section className="nd-heading">
-        <div><div className="nd-eyebrow">NETCLIP DRIVE</div><h1>{current?.name || tr('我的文件', 'My files')}</h1><p>{tr('让每份文件都有自己的位置。', 'A place for everything you want to keep.')}</p></div>
+        <PageHeading eyebrow="NETCLIP DRIVE" title={current?.name || 'My files'} description="A place for everything you want to keep." />
         <div className="nd-heading-actions"><button className="nd-button" onClick={() => openDialog('create')}><Icon.FolderPlus />{tr('新建文件夹', 'New folder')}</button><button className="nd-button nd-primary" onClick={() => input.current.click()}><Icon.Upload />{tr('上传文件', 'Upload files')}</button></div>
         <input ref={input} type="file" multiple hidden onChange={(e) => { uploadFiles(e.target.files); e.target.value = '' }} />
       </section>

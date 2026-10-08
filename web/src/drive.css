@@ -1,6 +1,6 @@
 /* The drive uses the clipboard's theme, but has its own full-page layout. */
 .nc-drive-link { color: inherit; text-decoration: none; }
-.nd-app { --nd-accent: #6c7cf6; --nd-soft: rgba(108,124,246,.12); min-height: 100dvh; display: flex; line-height: 1.5; }
+.nd-app { --nd-accent: var(--nc-accent); --nd-soft: var(--nc-accent-subtle); min-height: 100dvh; display: flex; line-height: 1.5; }
 .nd-app a { color: inherit; text-decoration: none; }
 .nd-app button, .nd-app a, .nd-app input, .nd-app select { -webkit-tap-highlight-color: transparent; }
 .nd-app button:disabled { opacity: .5; cursor: default; }
@@ -49,8 +49,8 @@
 .nd-heading-actions { display: flex; gap: 10px; flex-shrink: 0; }
 .nd-button { display: inline-flex; justify-content: center; align-items: center; gap: 8px; min-height: 38px; padding: 9px 14px; border-radius: 8px; border: 1px solid var(--nc-border-strong); font-size: 12px; font-weight: 500; white-space: nowrap; }
 .nd-button:hover { background: var(--nc-bg-hover); }
-.nd-button.nd-primary { color: #fff; background: var(--nd-accent); border-color: var(--nd-accent); }
-.nd-button.nd-primary:hover { background: #5d6deb; }
+.nd-button.nd-primary { color: var(--nc-accent-contrast); background: var(--nd-accent); border-color: var(--nd-accent); }
+.nd-button.nd-primary:hover { background: var(--nc-accent-hover); }
 .nd-button.nd-danger { background: var(--nc-danger); color: #fff; border-color: var(--nc-danger); }
 .nd-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 14px; min-height: 49px; margin-bottom: 14px; }
 .nd-count { font-size: 12px; color: var(--nc-text-secondary); }
@@ -74,7 +74,7 @@
 .nd-file-name > button, .nd-file-name > a { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; padding: 14px 0; font-size: 13px; }
 .nd-file-name > button:hover, .nd-file-name > a:hover { color: var(--nd-accent); }
 .nd-size, .nd-date { font-size: 11px; color: var(--nc-text-secondary); }
-.nd-glyph { width: 35px; height: 39px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; border-radius: 8px; background: var(--nd-soft); color: #818eff; }
+.nd-glyph { width: 35px; height: 39px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; border-radius: 8px; background: var(--nd-soft); color: var(--nc-text-secondary); }
 .nd-glyph .nc-icon { width: 21px; height: 21px; }
 .nd-glyph--folder { color: #cf9b46; background: rgba(215,165,74,.12); }
 .nd-glyph--image { color: #55aa8d; background: rgba(85,170,141,.12); }

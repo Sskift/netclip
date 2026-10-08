@@ -23,7 +23,7 @@
   --nc-sp-5: 20px;  --nc-sp-6: 24px;  --nc-sp-7: 32px;  --nc-sp-8: 40px;
   --nc-sp-9: 48px;  --nc-sp-10: 64px;
 
-  --nc-r-sm: 6px;  --nc-r-md: 10px;  --nc-r-lg: 14px;  --nc-r-full: 999px;
+  --nc-r-sm: 6px;  --nc-r-md: 10px;  --nc-r-lg: 12px;  --nc-r-full: 999px;
 
   --nc-h-header: 44px;      --nc-h-omnibar: 56px;     --nc-h-row: 52px;
   --nc-h-section: 28px;     --nc-h-footer: 34px;      --nc-w-list: 380px;
@@ -41,25 +41,25 @@
 /* ── Dark (default) ─────────────────────────────────────────────────────── */
 :root,
 [data-theme="dark"] {
-  --nc-bg: #0f0f11;
-  --nc-bg-raised: #17171a;
-  --nc-bg-overlay: #1d1d21;
-  --nc-bg-hover: #202027;
-  --nc-bg-selected: #2a2a33;
-  --nc-bg-input: #17171a;
+  --nc-bg: #171715;
+  --nc-bg-raised: #20201d;
+  --nc-bg-overlay: #252522;
+  --nc-bg-hover: #292926;
+  --nc-bg-selected: #33332e;
+  --nc-bg-input: #20201d;
   --nc-scrim: rgba(0, 0, 0, 0.62);
 
-  --nc-border: #26262c;
-  --nc-border-strong: #34343c;
+  --nc-border: #33332e;
+  --nc-border-strong: #45453e;
 
-  --nc-text: #ededf0;
-  --nc-text-secondary: #9a9aa6;
-  --nc-text-tertiary: #6c6c78;
+  --nc-text: #efeee9;
+  --nc-text-secondary: #a4a299;
+  --nc-text-tertiary: #77766e;
 
-  --nc-accent: #ff6363;
-  --nc-accent-hover: #ff7a7a;
-  --nc-accent-subtle: rgba(255, 99, 99, 0.14);
-  --nc-accent-contrast: #ffffff;
+  --nc-accent: #e8e6de;
+  --nc-accent-hover: #ffffff;
+  --nc-accent-subtle: rgba(232, 230, 222, 0.12);
+  --nc-accent-contrast: #24231f;
 
   --nc-pin: #f5a524;
   --nc-pin-subtle: rgba(245, 165, 36, 0.16);
@@ -80,23 +80,24 @@
 /* ── Light ──────────────────────────────────────────────────────────────── */
 [data-theme="light"] {
   --nc-bg: #ffffff;
-  --nc-bg-raised: #f7f7f8;
+  --nc-bg-raised: #f8f8f6;
   --nc-bg-overlay: #ffffff;
-  --nc-bg-hover: #f0f0f2;
-  --nc-bg-selected: #e8e8ec;
-  --nc-bg-input: #f2f2f4;
+  --nc-bg-hover: #f2f1ed;
+  --nc-bg-selected: #eeede8;
+  --nc-bg-input: #f8f8f6;
   --nc-scrim: rgba(20, 20, 24, 0.38);
 
-  --nc-border: #e3e3e7;
-  --nc-border-strong: #cfcfd6;
+  --nc-border: #e6e5e1;
+  --nc-border-strong: #d4d2cc;
 
-  --nc-text: #1a1a1f;
-  --nc-text-secondary: #6a6a75;
-  --nc-text-tertiary: #9a9aa6;
+  --nc-text: #34322d;
+  --nc-text-secondary: #77756e;
+  --nc-text-tertiary: #a4a299;
 
-  --nc-accent: #e5484d;
-  --nc-accent-hover: #d13f44;
-  --nc-accent-subtle: rgba(229, 72, 77, 0.1);
+  --nc-accent: #34322d;
+  --nc-accent-hover: #22211e;
+    --nc-accent-contrast: #ffffff;
+  --nc-accent-subtle: rgba(52, 50, 45, 0.08);
   --nc-accent-contrast: #ffffff;
 
   --nc-pin: #c77700;
@@ -111,27 +112,28 @@
   --nc-shadow-lg: 0 16px 48px rgba(16, 16, 24, 0.16);
 
   --nc-checker-a: #ffffff;
-  --nc-checker-b: #f0f0f2;
+  --nc-checker-b: #f2f1ed;
   color-scheme: light;
 }
 
 @media (prefers-color-scheme: light) {
   :root:not([data-theme]) {
     --nc-bg: #ffffff;
-    --nc-bg-raised: #f7f7f8;
+    --nc-bg-raised: #f8f8f6;
     --nc-bg-overlay: #ffffff;
-    --nc-bg-hover: #f0f0f2;
-    --nc-bg-selected: #e8e8ec;
-    --nc-bg-input: #f2f2f4;
+    --nc-bg-hover: #f2f1ed;
+    --nc-bg-selected: #eeede8;
+    --nc-bg-input: #f8f8f6;
     --nc-scrim: rgba(20, 20, 24, 0.38);
-    --nc-border: #e3e3e7;
-    --nc-border-strong: #cfcfd6;
-    --nc-text: #1a1a1f;
-    --nc-text-secondary: #6a6a75;
-    --nc-text-tertiary: #9a9aa6;
-    --nc-accent: #e5484d;
-    --nc-accent-hover: #d13f44;
-    --nc-accent-subtle: rgba(229, 72, 77, 0.1);
+    --nc-border: #e6e5e1;
+    --nc-border-strong: #d4d2cc;
+    --nc-text: #34322d;
+    --nc-text-secondary: #77756e;
+    --nc-text-tertiary: #a4a299;
+    --nc-accent: #34322d;
+    --nc-accent-hover: #22211e;
+    --nc-accent-contrast: #ffffff;
+    --nc-accent-subtle: rgba(52, 50, 45, 0.08);
     --nc-pin: #c77700;
     --nc-pin-subtle: rgba(199, 119, 0, 0.12);
     --nc-success: #18794e;
@@ -142,7 +144,7 @@
     --nc-shadow-md: 0 6px 20px rgba(16, 16, 24, 0.1);
     --nc-shadow-lg: 0 16px 48px rgba(16, 16, 24, 0.16);
     --nc-checker-a: #ffffff;
-    --nc-checker-b: #f0f0f2;
+    --nc-checker-b: #f2f1ed;
     color-scheme: light;
   }
 }

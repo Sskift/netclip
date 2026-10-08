@@ -5,6 +5,7 @@ import { dayGroup, formatBytes, relativeTime } from '../lib/time.js'
 import { dimensions, highlight, prettyUrl, safeUrl, titleOf } from '../lib/format.js'
 import { capabilities } from '../lib/clipboard.js'
 import * as Icon from './Icons.jsx'
+import PageHeading from './PageHeading.jsx'
 
 const FRESH_WINDOW_MS = 10 * 60 * 1000
 const SWIPE_THRESHOLD = 0.25 // of card width
@@ -332,7 +333,7 @@ export default function Mobile({ nc, ui }) {
   return (
     <div className="nc-mobile">
       <header className="nc-mheader nc-chrome">
-        <span className="nc-section-title">Clipboard history</span>
+        <PageHeading eyebrow="NETCLIP CLIPBOARD" title="Clipboard" description="Ready on every device." />
         <span className="nc-mheader-status">
           <span className={`nc-dot${nc.connection === 'live' ? '' : ' nc-dot--off'}`} />
           {nc.connection === 'live' ? t('mobile.live') : t('mobile.reconnecting')}
