@@ -1,251 +1,236 @@
 # netclip
 
-局域网剪贴板。在电脑上按一次 `⌘V`，东西就已经在手机上了。
+A shared clipboard and personal drive for your devices, hosted on your own machine.
 
-界面照着 Raycast 的 Clipboard History 做：顶部一个常驻焦点的搜索框、左边分组列表、右边预览、底部一直告诉你能按什么键。支持文本、图片和文件、搜索、Pin，不用管理——没 Pin 的东西会自己过期消失。
+This fork of [silentiris/netclip](https://github.com/silentiris/netclip) adds permanent file storage, folders, whole-folder imports, and a unified **Clipboard / Drive** workspace. Open the same address on your computer and phone to access your content.
 
-此 fork 在统一工作区 `/` 中提供 Clipboard / Drive 标签切换：创建多级文件夹、上传和下载任意文件、重命名、批量移动 / 删除、搜索当前文件夹、按名称 / 大小 / 修改时间排序，以及列表 / 网格视图。电脑和手机使用同一个页面，顶部切换不会刷新页面，并保留搜索和当前文件夹。旧 `/drive` 链接仍会打开统一工作区的 Drive 标签。界面固定使用英文，两个模块共用灰白黑配色、标题、按钮、搜索框和卡片样式。
+Netclip has no login or password. Devices that can reach the instance share the same clipboard and drive, including permission to change or delete content. Run it on a trusted LAN or inside your Tailscale network.
 
-云盘文件长期保留，只有主动删除才会移除，不受剪贴板过期时间、条目数或容量清理影响。文件保留原始字节和名称；同名上传自动加序号，不覆盖已有文件。上传以流写入磁盘，支持多文件选择、拖入和进度显示，单文件默认上限 512 MiB（`NETCLIP_DRIVE_MAX_UPLOAD_MB`）。文件夹和元数据存在 SQLite，文件内容存在数据目录的 `drive/` 中，备份时保留整个数据目录。
+## One workspace, two views
 
-在 Drive 中选择 **Upload → Upload folder**，或直接拖入整个文件夹，会保留顶层文件夹名和内部目录结构。重名文件夹自动加编号。拖拽导入还会保留空文件夹；系统文件夹选择器只提供文件，因此会省略空目录。排序、上传和文件操作与剪贴板共用同一个菜单组件。
-
-桌面端可拖动剪贴板列表与预览区之间的分界线，也可拖动 Drive 侧栏右边界调整宽度。双击恢复默认，聚焦分界线后可用方向键微调；宽度保存在当前浏览器中，窄窗口会自动限制两侧的最小宽度。
-
-剪贴板仍可临时收发文本、图片和附件。剪贴板附件默认保留 7 天，固定后不自动过期；单次上传默认 25 MiB。长期存放请使用云盘。升级保留已有剪贴板记录、ID、固定状态和图片。
-
-界面字体采用 DM Sans 和 Libre Baskerville；中文内容使用 Resource Han Rounded。字体随站点自托管，无需访问外部字体 CDN，授权文件位于 `web/public/fonts/`。
-
-无需登录或密码。部署在 Tailscale 内时，设置 `NETCLIP_BIND=127.0.0.1`，然后运行 `tailscale serve --bg --tcp=3210 tcp://127.0.0.1:3210`，已连接同一 tailnet 且有访问权限的设备即可通过服务器的 Tailscale IP 访问。
-
-```
-┌──────────────────────────────────────────────────────────────────────────┐
-│  netclip                                              [ ▣ 在手机上打开 ] │
-├──────────────────────────────────────────────────────────────────────────┤
-│  ⌕   搜索 — 或按 ⌘V 发送剪贴板                                        ✕  │
-├────────────────────────────────┬─────────────────────────────────────────┤
-│ 已固定                         │  shot.png · 1440 × 900                  │
-│ 📌 wifi 密码 · Kx7#mq…         │  ┌───────────────────────────────────┐  │
-│ 📌 ssh pi@nas.local            │  │                                   │  │
-│                                │  │           [ 图片预览 ]            │  │
-│ 今天                           │  │                                   │  │
-│▸🖼 shot.png            14:32    │  └───────────────────────────────────┘  │
-│ 🔗 github.com/…/pull/42 14:20  │                                         │
-│ ¶  docker run -d -p 32… 13:58  │  类型   PNG · 842 KB · 1440 × 900       │
-│                                │  添加于 今天 14:32 · 来自 Mac · Chrome  │
-│ 昨天                           │  过期   2 天后        按 ⌥P 永久保留    │
-│ 🔗 192.168.1.42:3210    21:17  │                                         │
-├────────────────────────────────┴─────────────────────────────────────────┤
-│ ● 2 台设备      复制 ↵   固定 ⌥P   二维码 ⌘G   删除 ⌘⌫   更多 ⌘K       │
-└──────────────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## 跑起来
-
-```bash
-docker compose up -d
-```
-
-然后在电脑上打开 `http://<这台机器的内网IP>:3210`，点右上角 **在手机上打开**，用手机扫码。配对只需要这一次。
-
-> · 如果这台机器的 docker socket 是 root-only，前面加 `sudo`。
-> · compose 里用的是 `network_mode: host`，这样服务端能看到真实网卡、自己算出手机该连哪个地址。**这只在 Linux 上有效**；Docker Desktop（macOS/Windows）上把那行删掉、换回 `ports: ["3210:3210"]` 即可，只要你用内网 IP 而不是 localhost 打开页面，二维码一样是对的。
-
----
-
-## 怎么用
-
-**电脑 → 手机。** 在页面上任意位置按 `⌘V` / `Ctrl+V`，剪贴板里的文字或截图立刻成为一条记录，手机上正开着的页面同一瞬间就刷新了。把文件拖到窗口任意位置也一样。不需要点任何按钮，没有对话框。
-
-**手机上拿东西。**
-
-| 内容 | 点一下会 |
-|---|---|
-| 链接 | 直接打开（次要按钮是复制） |
-| 文本 | 复制，卡片本身闪一下绿色确认 |
-| 图片 | 什么都不会发生 —— **长按图片**，用系统菜单里的「存储到照片」或「拷贝」 |
-
-底部三个键：`📌` 只看已固定 · `＋` 从手机发送 · `🔍` 搜索（搜索框在底部，紧挨着键盘）。
-
-左滑删除、右滑固定，删除后有 6 秒撤销。
-
----
-
-## 为什么图片要长按，不给个"复制图片"按钮
-
-因为在 `http://192.168.x.x` 下**做不到**，而给一个按了没反应的按钮比不给更糟。
-
-浏览器把 `navigator.clipboard`、`ClipboardItem`、`navigator.share` 全部限制在 secure context（HTTPS 或 localhost）。内网 IP 不在白名单里，这些 API 在页面里根本不存在。文本还有退路——老的 `document.execCommand('copy')` 没有这个限制，所有现代浏览器都还支持，netclip 用的就是它；但它只接受字符串，**没有任何办法**把图片字节写进剪贴板。
-
-而 iOS Safari 长按图片的「存储到照片」和 Android Chrome 的「复制图片 / 分享图片」不需要任何 API，效果还更好（`<a download>` 在 iOS 上永远只能存进「文件」App，进不了相册）。所以 netclip 的做法是：把一张**原图**的 `<img>` 放在你拇指底下，然后让开。
-
-这也意味着代码里有一条硬约束：**内容区的图片上面不能出现 `-webkit-touch-callout: none` 或 `user-select: none`，不能给图片套 `<a>`，不能盖透明层，不能用 CSS 背景图。** 违反了不会报错，只会让 iOS 上的图片彻底没法复制。`npm run build` 里有一个 `check-css` 会扫描构建产物，违反就直接构建失败。
-
-如果你确实配了 HTTPS（见下），netclip 会自动探测到，「复制图片」按钮就会出现，长按提示同时消失。
-
----
-
-## 快捷键
-
-搜索框永远是焦点，直接打字就是过滤。
-
-| 键 | 作用 |
-|---|---|
-| 任意字符 | 过滤列表 |
-| `⌘V` / `Ctrl+V` | **发送剪贴板**（在页面任何地方，不管焦点在哪） |
-| `↑` `↓` | 移动选中项（打字时也能用） |
-| `↵` | 复制选中项；如果搜索没结果，则变成"把搜索词作为新内容发送"（底部会先告诉你） |
-| `⌘↵` | 无条件发送输入框里的文字 |
-| `⌥P` | 固定 / 取消固定 |
-| `⌘G` | 显示这条内容的二维码（手机扫了直接跳到它） |
-| `⌘O` | 在浏览器打开链接 |
-| `⌘S` | 下载 |
-| `⌘⌫` | 删除（6 秒内 `⌘Z` 撤销） |
-| `⌘K` | 操作菜单 |
-| `⌘F` | 聚焦并全选搜索框 |
-| `Esc` | 清空搜索；已经空了就跳回最新一条 |
-| `Tab` | 把焦点移出搜索框（一路 Tab 到预览区就能手动 `⌘A` `⌘C`，这是保底路径） |
-
----
-
-## 过期和固定
-
-没有"清理"这件事需要你去做。
-
-- 每条未固定的内容都持有一个**租约**：文本和文件 7 天、图片 3 天。
-- 租约在三种情况下会**续期**：新建、再次复制同样的内容（此时它会回到列表顶部）、以及你从历史里复制它一次。所以**你真正在用的东西不会过期**。
-- **固定**会直接去掉租约，永不过期，也永远不会被容量上限清掉。
-- **取消固定**会重新发一个完整的租约，而不是恢复那个早就过期的旧的——否则取消固定一条半年前的内容会让它在几毫秒后消失，那看起来就像"这 App 把我数据吃了"。
-- 两条兜底：超过 500 条时清最老的未固定项；总大小超过 2 GB 时清最老的未固定**图片和文件**。刚到的东西 5 分钟内绝不会被清。
-
-列表里未固定的行会随着租约倒数**缓慢变淡**（下限 0.72，保证还看得清）——过期是一种你余光能感觉到的东西，而不是一个需要读的倒计时。
-
----
-
-## 环境变量
-
-| 变量 | 默认 | 说明 |
+| | Clipboard | Drive |
 |---|---|---|
-| `PORT` | `3210` | |
-| `NETCLIP_BIND` | `0.0.0.0` | |
-| `NETCLIP_DATA_DIR` | 容器内 `/data`，直接 `npm start` 时是 `./data` | SQLite + 图片 + 文件都在这里 |
-| `NETCLIP_RETENTION_DAYS` | `7` | 文本保留天数 |
-| `NETCLIP_IMAGE_RETENTION_DAYS` | `3` | 图片保留天数 |
-| `NETCLIP_FILE_RETENTION_DAYS` | `7` | 文件保留天数 |
-| `NETCLIP_MAX_ITEMS` | `500` | |
-| `NETCLIP_MAX_TOTAL_MB` | `2048` | |
-| `NETCLIP_MAX_UPLOAD_MB` | `25` | 剪贴板单次上传上限 |
-| `NETCLIP_DRIVE_MAX_UPLOAD_MB` | `512` | 云盘单文件上限，MiB |
-| `NETCLIP_MAX_TEXT_KB` | `1024` | 单条文本上限 |
-| `NETCLIP_SWEEP_MINUTES` | `5` | 清理频率 |
+| Use it for | Quickly sharing text, links, images, and attachments | Keeping and organizing files |
+| Organization | Search, pinned items, chronological history | Nested folders, search within a folder, sorting, list/grid views |
+| Retention | Unpinned text/files: 7 days; images: 3 days by default | Kept until you delete them |
+| Upload limit | 25 MiB per clipboard upload | 512 MiB per file |
 
-界面语言按浏览器语言自动选中英文；想固定的话在控制台执行 `localStorage.setItem('nc.lang','en')` 再刷新。
+Switch between **Clipboard** and **Drive** at the top of `/`. Switching preserves your search and current folder without reloading the page. Older `/drive` bookmarks open the Drive tab in the same workspace.
 
----
+The interface uses English throughout, with shared compact controls and menus, light/dark themes, and layouts for desktop and phone. Fonts are served locally: DM Sans for the interface, Libre Baskerville for headings, and Resource Han Rounded for Chinese content. Font licenses are included in [web/public/fonts](web/public/fonts).
 
-## 从终端用
+### Clipboard
 
-```bash
-# 把剪贴板发过去（macOS）
-nclip() { pbpaste | curl -sT- http://192.168.1.42:3210/api/items; }
+- Paste with **Cmd/Ctrl + V** while the Clipboard tab is active, or drag in files.
+- Search your history, copy text, open links, download attachments, and pin items to keep them.
+- On a phone, use **Add to netclip** to send content. Long-press images to use the browser's copy/save actions; image-copy buttons appear when supported.
+- Deleting a clipboard item offers a six-second undo window. Drive deletions are permanent and do not use this undo flow.
+- Connected devices receive updates automatically.
 
-# 发一个文件的内容
-curl -sT- http://192.168.1.42:3210/api/items < notes.md
+### Drive
 
-# 发一张图
-curl -X POST http://192.168.1.42:3210/api/items/file \
-  -H 'content-type: image/png' -H 'x-filename: shot.png' \
-  --data-binary @shot.png
+- Create folders and subfolders; rename, move, download, and delete entries.
+- Use **Upload → Upload files** for individual files, or **Upload → Upload folder** for a complete folder.
+- Drag files or folders directly into Drive to upload them to the folder you are viewing.
+- Folder imports retain the top-level folder name and nested paths. Drag-and-drop also preserves empty folders; the system folder picker supplies files only, so empty directories are omitted.
+- Uploading a name that already exists adds a numbered suffix instead of overwriting content. Re-importing a folder creates a separately numbered folder.
+- Uploads show progress, and an in-progress file transfer can be cancelled. Drive files retain their original bytes and are separate from clipboard cleanup.
+
+### Adjustable panes
+
+On desktop, drag the divider between the clipboard list and preview, or the right edge of the Drive sidebar. Widths are remembered in the current browser and constrained to keep both sides usable.
+
+Double-click a divider to reset it. With the divider focused, use **Left/Right** for 10 px adjustments, **Shift + Left/Right** for 40 px adjustments, **Home/End** for the width limits, and **Enter** to reset. Phones retain the single-column layout.
+
+## Run it
+
+### Docker Compose on Linux
+
+```sh
+git clone https://github.com/Sskift/netclip.git
+cd netclip
+docker compose up -d --build
 ```
 
-完整 API：
+Open `http://<server-lan-ip>:3210` from your devices. **Open on phone** displays a QR code for the reachable address.
 
-| 方法 | 路径 | 说明 |
-|---|---|---|
-| `GET` | `/api/items?q=` | 列表（小文本直接内联返回，见下） |
-| `GET` | `/api/items/:id` | 单条，一定带完整 `content` |
-| `POST` `PUT` | `/api/items` | `{"text":"…"}` 或直接 `text/plain` 原文（收 PUT 是为了让 `curl -T` 能用） |
-| `POST` `PUT` | `/api/items/file` | 原始字节，`Content-Type` 即 mime，可带 `X-Filename` |
-| `PATCH` | `/api/items/:id` | `{"pinned":true}` |
-| `POST` | `/api/items/:id/copy` | 记一次使用并续租约 |
-| `DELETE` | `/api/items/:id` | 删不存在的 id 也返回 204 |
-| `DELETE` | `/api/items` | 清空所有未固定项 |
-| `GET` | `/api/items/:id/raw` `?download=1` | 原图 |
-| `GET` | `/api/items/:id/thumb` | 320px webp 缩略图 |
-| `GET` | `/api/events` | SSE 实时推送 |
-| `GET` | `/api/info` | 配置、内网地址、在线设备数 |
+The supplied Compose file uses host networking and a persistent `netclip-data` volume. On Docker Desktop for macOS or Windows, replace `network_mode: host` with:
 
-**没有鉴权。** 这是刻意的——它跑在你信任的内网里，登录框只会成为每次用它都要付的成本。别把 3210 端口暴露到公网。
+```yaml
+ports:
+  - "3210:3210"
+```
 
----
+Open the app using the host machine's reachable address rather than `localhost` when sharing its link with another device.
 
-## 一个不显眼但重要的设计
+### From source
 
-列表接口会把**小于 32 KB 的文本内容直接内联**在响应里（整个响应最多内联 1 MB，超出的按新到旧截断）。
+Requires **Node.js 24 or later**.
 
-这不是性能优化，是功能能否成立的前提：iOS Safari 只在用户手势里**同步**执行 `execCommand('copy')`，任何 `await` 都会让手势失效。如果点一下还要先发一个请求拿正文再复制，在 iPhone 上就会静默地什么都不发生——而且恰好是在长文本（日志、token、带参数的 URL）这些最需要复制的东西上失败。所以正文必须在你点之前就已经在内存里。
-
-超过 32 KB 的少数条目会走显式的两步：第一下拉取正文（按钮转圈），第二下才复制，按钮文案也会变成「点这里复制」。宁可多一下点击，也不要一次静默失败。
-
----
-
-## 开发
-
-```bash
+```sh
+git clone https://github.com/Sskift/netclip.git
+cd netclip
 npm install
-npm run dev          # API :3210 + Vite :3211，会打印手机能访问的地址
-npm run build        # 构建到 server/public/，并跑 check-css 守卫
-
-npm run test:serve   # 另开一个终端：起一个一次性实例（:3299，数据在 /tmp）
-npm test             # 53 项服务端 + 57 项 UI + 21 项布局
+npm run build
+npm start
 ```
 
-**测试会清空目标实例，包括已固定项。** 所以它们默认只打 `:3299`（不是真实部署的 `:3210`），并且发现目标非空时会直接拒绝运行——想强行覆盖得显式加 `--force`。这两道保险是有代价换来的：我在开发过程中两次把测试打到了正在使用的实例上，删掉了真实数据。
+The server defaults to port `3210`; data is stored in `./data`. Use a process manager to keep a source deployment running.
 
-测试分三层：
+### Tailscale access
 
-- `npm run test:server` —— 打真实 HTTP 接口，覆盖搜索折叠、脏数据清洗、去重、租约语义、EXIF 方向、SVG 拒绝、内联阈值、并发去重、流中断不泄漏 fd。
-- `npm run test:ui` —— 用 jsdom 挂载**真实构建产物**并操作它：键盘导航、复制（断言 `execCommand` 真的被调用）、CJK 搜索、固定、删除撤销、粘贴入库，以及移动端那条图片契约（图片是 `<img>`、没被 `<a>` 包住、`src` 指向原图而非缩略图）。
-- `npm run test:layout` —— 真实 Chromium，iPhone 视口 390×844 + 桌面 1440×900，**测量真实盒子**：卡片没有塌陷、feed 真的能滚、无横向溢出、长串不撑破卡片、点击目标 ≥44px、搜索框 ≥16px（否则 iOS 会缩放整页）、底栏不遮挡最后一张卡片。
+Run Netclip bound to loopback:
 
-第三层是补出来的：jsdom 不做布局计算，所以它看不见"卡片被压成 4px 高"这类问题——而这恰好在 iPhone 上真实发生过一次。装浏览器：`npx playwright install chromium`（只装本体，不需要系统依赖）。
-
-技术栈刻意压得很薄：服务端只有 `sharp` 一个依赖（SQLite 用 Node 内置的 `node:sqlite`，没有原生编译），前端只有 React + 一个二维码库，样式是手写 CSS 变量。镜像 247 MB。
-
-```
-server/src/
-  index.js    HTTP 入口、优雅退出
-  routes.js   全部 API
-  items.js    入库逻辑：去重、清洗、预览截断
-  db.js       schema 和全部 SQL
-  blobs.js    内容寻址存储、缩略图、孤儿回收
-  cleanup.js  租约过期 + 容量兜底
-  events.js   SSE 广播
-web/src/
-  App.jsx           外壳、全局粘贴/拖放、深链接、各种浮层
-  components/       Desktop / Mobile / Preview / Overlays / Icons
-  lib/clipboard.js  ⭐ 所有复制相关的坑都写在这个文件的注释里
-  lib/store.js      数据层：SSE 合并、乐观更新、延迟删除
-  styles.css        设计 token + 那份图片 CSS 契约
-scripts/
-  dev.mjs           同时起 API 和 Vite，打印手机可访问的地址
-  check-css.mjs     图片 CSS 契约的构建期守卫（Docker 构建里也会跑）
-  test-server.mjs   服务端接口测试
-  smoke.mjs         jsdom 挂载真实构建产物做交互测试
-  recover-wal.mjs   从 SQLite WAL / 空闲页里捞回被删的记录
-  restore-rows.mjs  把捞回的记录只插不覆盖地写回库
+```sh
+NETCLIP_BIND=127.0.0.1 npm start
 ```
 
-最后两个是灾难恢复工具：`DELETE` 提交后，数据在 checkpoint 之前仍然留在 WAL 的页镜像里。反过来说，如果你希望"删了就真的没了"，这点值得知道。
+For the supplied Linux Compose setup, add `NETCLIP_BIND: "127.0.0.1"` under the service's `environment` and recreate the container. With host networking, this binds to the host's loopback interface.
 
----
+On that same host, forward the Tailscale TCP port:
 
-## 可选：HTTPS
+```sh
+tailscale serve --bg --tcp=3210 tcp://127.0.0.1:3210
+tailscale serve status
+```
 
-配上证书后（`NETCLIP_TLS_CERT` / `NETCLIP_TLS_KEY` 目前未实现，最简单的是前面放一个 Caddy 或用 `tailscale serve`），页面就进入 secure context，「复制图片」按钮会自动出现，还能真正安装成 PWA。
+Then open `http://<server-tailscale-ip>:3210` on devices connected to the same tailnet with permission to reach the server. This setup uses Tailscale access controls and does not require a Netclip password or Tailscale Funnel.
 
-但不建议为此折腾：自签证书要在 iOS 上装描述文件**再**去「关于本机 → 证书信任设置」里单独打开，大部分人不会走完；而给内网 IP 签 Let's Encrypt 证书又会被路由器的 DNS rebinding 保护挡住。长按存图已经够用了。
+The example serves HTTP over Tailscale. Netclip does not terminate TLS itself; if you add HTTPS, keep the UI and API on the same origin. Browser clipboard capabilities are detected at runtime, with manual text copying and image long-press actions available as fallbacks.
 
-**永远不要**把前端放在公网 HTTPS 域名上去请求内网的 http API——Chrome 142+ 的 Local Network Access 会用一个权限弹窗拦住它，用户拒绝后是静默失败。netclip 永远保持单一 origin。
+## Storage and configuration
+
+Re-adding content renews clipboard expiry. Text copy actions and clipboard attachment downloads also refresh retention. Pinned clipboard items do not expire and are excluded from capacity eviction. Unpinning starts a fresh retention period.
+
+Cleanup also limits unpinned clipboard history to 500 items and evicts older unpinned images/files when clipboard storage exceeds 2 GiB. Recently added items have a five-minute grace period for capacity eviction. These limits do **not** apply to Drive: its files remain until explicitly deleted.
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `PORT` | `3210` | HTTP port |
+| `NETCLIP_BIND` | `0.0.0.0` | Listening address |
+| `NETCLIP_DATA_DIR` | `./data`; `/data` in Docker | Database and file storage |
+| `NETCLIP_RETENTION_DAYS` | `7` | Unpinned clipboard text retention |
+| `NETCLIP_IMAGE_RETENTION_DAYS` | `3` | Unpinned clipboard image retention |
+| `NETCLIP_FILE_RETENTION_DAYS` | `7` | Unpinned clipboard attachment retention |
+| `NETCLIP_MAX_ITEMS` | `500` | Unpinned clipboard item limit |
+| `NETCLIP_MAX_TOTAL_MB` | `2048` | Clipboard capacity threshold, MiB |
+| `NETCLIP_MAX_UPLOAD_MB` | `25` | Clipboard upload limit, MiB |
+| `NETCLIP_DRIVE_MAX_UPLOAD_MB` | `512` | Drive limit per uploaded file, MiB |
+| `NETCLIP_MAX_TEXT_KB` | `1024` | Clipboard text limit per item, KiB |
+| `NETCLIP_SWEEP_MINUTES` | `5` | Clipboard cleanup interval |
+
+Back up the **entire data directory**, not just the database:
+
+```text
+data/
+  netclip.db       SQLite metadata and clipboard text
+  netclip.db-wal   SQLite journal, when present
+  netclip.db-shm   SQLite shared memory, when present
+  blobs/          Clipboard images and attachments
+  thumbs/         Clipboard image thumbnails
+  drive/          Permanent Drive file contents
+  tmp/            Temporary clipboard uploads
+```
+
+For a straightforward consistent backup, stop Netclip, copy the data directory or Docker volume, then restart it. Keep the persistent volume when rebuilding or upgrading the app.
+
+## Keyboard shortcuts
+
+These shortcuts apply to the desktop Clipboard view. **Mod** means **Cmd** on macOS and **Ctrl** elsewhere.
+
+| Shortcut | Action |
+|---|---|
+| `Mod + V` | Send clipboard content |
+| `Up / Down` | Select a clipboard item |
+| `Enter` | Copy the selected text or download the selected image/file; send the search text if nothing matches |
+| `Mod + Enter` | Send the search field's text |
+| `Alt + P` | Pin or unpin the selected item |
+| `Mod + G` | Show the item's QR code |
+| `Mod + O` | Open a selected link |
+| `Mod + S` | Download the selected item |
+| `Mod + Backspace` | Delete the selected item |
+| `Mod + Z` | Undo a pending clipboard deletion |
+| `Mod + K` | Open the action menu |
+| `Mod + F` | Focus and select the search field |
+| `Escape` | Clear search or return to the newest item |
+
+Menus support arrow-key navigation, **Enter** to choose, and **Escape** to close. Workspace tabs support **Left/Right** and **Home/End** when focused.
+
+## Terminal and API
+
+Send text to the clipboard:
+
+```sh
+printf 'Hello from another device' | curl --fail -T - http://localhost:3210/api/items
+
+# macOS clipboard
+pbpaste | curl --fail -T - http://localhost:3210/api/items
+```
+
+Upload a file to the root of Drive:
+
+```sh
+curl --fail -X POST http://localhost:3210/api/drive/upload \
+  -H 'Content-Type: application/octet-stream' \
+  -H 'X-Filename: archive.zip' \
+  --data-binary @archive.zip
+```
+
+Replace `localhost` with the server address for remote access. URL-encode non-ASCII filenames in the `X-Filename` header.
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| `GET` | `/api/items?q=` | List/search clipboard items; small text bodies are included |
+| `GET` | `/api/items/:id` | Read an item, including its full text content |
+| `POST`, `PUT` | `/api/items` | Add plain text or JSON `{"text":"..."}` |
+| `POST`, `PUT` | `/api/items/file` | Upload clipboard image/file bytes; accepts `Content-Type` and `X-Filename` |
+| `PATCH` | `/api/items/:id` | Set or clear `pinned` |
+| `POST` | `/api/items/:id/copy` | Record use and renew retention |
+| `DELETE` | `/api/items/:id` | Delete a clipboard item |
+| `DELETE` | `/api/items` | Delete unpinned clipboard items |
+| `GET` | `/api/items/:id/raw?download=1` | Download clipboard content |
+| `GET` | `/api/items/:id/thumb` | Read an image thumbnail |
+| `GET` | `/api/drive/entries?parent=<id>&q=` | List a Drive folder; omit `parent` for the root |
+| `POST` | `/api/drive/folders` | Create a folder with `{"name":"Photos","parentId":null}` |
+| `POST` | `/api/drive/upload?parent=<id>` | Upload raw file bytes with `X-Filename`; omit `parent` for the root |
+| `GET` | `/api/drive/entries/:id/download` | Download a Drive file |
+| `PATCH` | `/api/drive/entries/:id` | Rename with `name`, move with `parentId`, or both |
+| `DELETE` | `/api/drive/entries/:id` | Permanently delete a file or folder and its contents |
+| `GET` | `/api/events` | Receive live updates through server-sent events |
+| `GET` | `/api/info` | Read clipboard configuration and connection information |
+| `GET` | `/api/health` | Check server health |
+
+Folder creation accepts `"autoRename":true` to add a suffix on a name conflict, as used by folder imports. Without it, a conflicting name returns `409`. API clients upload folder trees by creating parent folders first, then sending each file to its parent's ID.
+
+## Development
+
+```sh
+npm install
+npm run dev       # API on :3210, Vite on :3211
+npm run build     # Emit server/public and run the existing image CSS check
+```
+
+For the existing test scripts, start a disposable instance in another terminal:
+
+```sh
+npm run test:serve # :3299, data in /tmp/netclip-test
+npm test
+```
+
+The test scripts create and delete data. Use only the disposable instance, not your live deployment. Individual scripts are available as `test:server`, `test:ui`, and `test:layout`; the layout script requires a Chromium installation, with `CHROME_PATH` pointing to its executable.
+
+The server uses Node's built-in HTTP server and SQLite, plus `sharp` for clipboard images. The frontend uses React, Vite, and CSS without a component framework.
+
+| Path | Responsibility |
+|---|---|
+| `server/src/routes.js` | Clipboard and shared HTTP endpoints |
+| `server/src/drive.js` | Permanent file storage and folder operations |
+| `server/src/cleanup.js` | Clipboard expiry and capacity cleanup |
+| `web/src/Workspace.jsx` | Shared shell and Clipboard/Drive switching |
+| `web/src/Drive.jsx` | Drive interface and upload queue |
+| `web/src/components/Menu.jsx` | Shared menu items and dropdowns |
+| `web/src/components/ResizeHandle.jsx` | Adjustable pane boundaries |
+| `web/src/lib/drive-import.js` | Folder traversal and parent-folder resolution |
+| `web/src/lib/clipboard.js` | Browser clipboard handling and fallbacks |
+
+Keep clipboard images as selectable `<img>` elements so native long-press actions remain available. The existing `check-css` build step checks that content styles do not disable them.
