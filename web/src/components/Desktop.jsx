@@ -7,6 +7,7 @@ import { phoneUrl } from '../lib/qr.js'
 import Preview from './Preview.jsx'
 import PageHeading from './PageHeading.jsx'
 import Menu from './Menu.jsx'
+import ResizeHandle from './ResizeHandle.jsx'
 import * as Icon from './Icons.jsx'
 
 const combo = (label) => (isMac ? MOD + label : `${MOD}+${label}`)
@@ -99,6 +100,7 @@ function Footer({ nc, flash, willSend }) {
 
 export default function Desktop({ nc, ui, active = true }) {
   const inputRef = useRef(null)
+  const bodyRef = useRef(null)
   const rowRefs = useRef(new Map())
   const composing = useRef(false)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -203,7 +205,7 @@ export default function Desktop({ nc, ui, active = true }) {
 
     const onKey = (e) => {
       if (e.isComposing || composing.current) return
-      if (e.target.closest?.('[role="tablist"]')) return
+      if (e.target.closest?.('[role="tablist"], [role="separator"]')) return
       const mod = isMac ? e.metaKey : e.ctrlKey
       const inPreview = document.activeElement?.classList?.contains('nc-preview-text')
 
@@ -337,12 +339,12 @@ export default function Desktop({ nc, ui, active = true }) {
         )}
       </div>
 
-      <div className="nc-body">
+      <div className="nc-body" ref={bodyRef}>
         {!items.length ? (
           <EmptyState query={query} loading={nc.loading} origin={origin} onQr={() => ui.openQr(origin)} onCopySnippet={ui.copySnippet} />
         ) : (
           <>
-            <div className="nc-list">
+            <div className="nc-list" id="clipboard-list">
               {grouped.map((entry) =>
                 entry.header ? (
                   <div className="nc-section nc-chrome" key={`h-${entry.header}`}>
@@ -368,6 +370,8 @@ export default function Desktop({ nc, ui, active = true }) {
                 ),
               )}
             </div>
+            <ResizeHandle containerRef={bodyRef} storageKey="nc.clipboard.listWidth" label="Resize clipboard list"
+              controls="clipboard-list" defaultRatio={0.34} minSize={240} maxSize={900} minRemaining={300} />
             <Preview
               item={selected}
               text={nc.textOf(selected)}

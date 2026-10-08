@@ -80,7 +80,7 @@
 .nw-workspace .nc-omnibar { height: 42px; padding: 0 13px; }
 .nw-workspace .nc-omnibar input { font-size: 13px; }
 .nw-workspace .nd-search { min-height: 40px; }
-.nw-workspace .nc-body { border: 1px solid var(--nc-border); border-radius: 12px; overflow: hidden; grid-template-columns: minmax(280px, 34%) minmax(0,1fr); }
+.nw-workspace .nc-body { position: relative; border: 1px solid var(--nc-border); border-radius: 12px; overflow: hidden; grid-template-columns: var(--nw-pane-width, 34%) minmax(0,1fr); }
 .nw-workspace .nc-list, .nw-workspace .nc-section { background: var(--nc-bg-raised); }
 .nw-workspace .nc-section { height: 38px; font-size: 10px; font-weight: 500; letter-spacing: 1.5px; }
 .nw-workspace .nc-row { width: calc(100% - 16px); margin: 2px 8px; padding: 0 12px; border-radius: 8px; }
@@ -113,7 +113,7 @@
 }
 
 /* Compact spacing, shared by both views. */
-.nw-workspace .nd-sidebar { width: 208px; flex-basis: 208px; padding-left: 16px; padding-right: 16px; }
+.nw-workspace .nd-sidebar { width: var(--nw-pane-width, 208px); flex-basis: var(--nw-pane-width, 208px); padding-left: 16px; padding-right: 16px; }
 .nw-workspace .nd-workspace { margin-bottom: 20px; }
 .nw-workspace .nd-nav > * { padding: 10px 12px; }
 .nw-workspace .nd-main { padding-left: 28px; padding-right: 28px; }
@@ -132,6 +132,12 @@
 .nw-workspace .nd-content, .nw-workspace .nd-empty { min-height: 280px; }
 .nw-workspace .nd-empty { padding-top: 28px; padding-bottom: 28px; }
 .nw-workspace .nd-bottom-note { padding-top: 20px; padding-bottom: 20px; }
+.nw-resize-handle { position: absolute; top: 0; bottom: 0; left: calc(var(--nw-pane-width, 34%) - 5px); width: 10px; z-index: 12; cursor: col-resize; touch-action: none; outline: none; }
+.nw-resize-handle--sidebar { left: auto; right: -5px; }
+.nw-resize-handle::before { content: ''; position: absolute; top: 0; bottom: 0; left: 4px; width: 2px; background: transparent; transition: background 120ms; }
+.nw-resize-handle::after { content: ''; position: absolute; top: 50%; left: 3px; width: 4px; height: 24px; transform: translateY(-50%); border-radius: 4px; background: var(--nc-border-strong); }
+.nw-resize-handle:hover::before, .nw-resize-handle:focus-visible::before, .nw-resize-handle[data-dragging=true]::before,
+.nw-resize-handle:hover::after, .nw-resize-handle:focus-visible::after, .nw-resize-handle[data-dragging=true]::after { background: var(--nc-accent); }
 @media (max-width: 700px) {
   .nw-workspace .nd-main { padding-left: 18px; padding-right: 18px; }
   .nw-workspace .nd-topbar { padding: 12px 0; gap: 6px; }

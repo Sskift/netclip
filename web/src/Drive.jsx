@@ -4,6 +4,7 @@ import { formatBytes } from './lib/time.js'
 import * as Icon from './components/Icons.jsx'
 import PageHeading from './components/PageHeading.jsx'
 import Menu from './components/Menu.jsx'
+import ResizeHandle from './components/ResizeHandle.jsx'
 import { selectedFiles, droppedFiles, folderResolver } from './lib/drive-import.js'
 import './drive.css'
 
@@ -31,6 +32,7 @@ function FileGlyph({ entry, large }) {
 }
 
 export default function Drive({ active = true, folderId, onNavigate }) {
+  const layoutRef = useRef(null)
   const currentFolder = useRef(folderId), currentActive = useRef(active)
   currentFolder.current = folderId; currentActive.current = active
   const [data, setData] = useState({ entries: [], breadcrumbs: [], stats: {}, maxUploadBytes: 512 * 1024 * 1024 })
@@ -199,11 +201,13 @@ export default function Drive({ active = true, folderId, onNavigate }) {
   </nav>
   const activeUploads = uploads.filter((u) => u.state === 'uploading' || u.state === 'waiting').length
 
-  return <div className="nd-app" onDragEnter={(e) => { if ([...e.dataTransfer.types].includes('Files')) { e.preventDefault(); dragDepth.current++; setDragging(true) } }}
+  return <div className="nd-app" ref={layoutRef} onDragEnter={(e) => { if ([...e.dataTransfer.types].includes('Files')) { e.preventDefault(); dragDepth.current++; setDragging(true) } }}
     onDragOver={(e) => { if ([...e.dataTransfer.types].includes('Files')) e.preventDefault() }}
     onDragLeave={() => { if (--dragDepth.current <= 0) { dragDepth.current = 0; setDragging(false) } }}
     onDrop={(e) => { e.preventDefault(); dragDepth.current = 0; setDragging(false); if ([...e.dataTransfer.types].includes('Files')) importDrop(e.dataTransfer) }}>
-    <aside className="nd-sidebar">
+    <aside className="nd-sidebar" id="drive-sidebar">
+      <ResizeHandle containerRef={layoutRef} storageKey="nc.drive.sidebarWidth" label="Resize drive sidebar" controls="drive-sidebar"
+        defaultSize={208} minSize={176} maxSize={400} minRemaining={420} className="nw-resize-handle--sidebar" />
       <div className="nd-workspace"><span className="nd-avatar">N</span><div><strong>{tr('我的空间', 'My space')}</strong><small>{tr('随时存取，自由整理', 'Your files, across devices')}</small></div></div>
       <nav className="nd-nav">
         <button className="nd-nav-active" onClick={() => navigate(null)}><Icon.Folder />{tr('全部文件', 'All files')}<span>{data.stats.files || 0}</span></button>
