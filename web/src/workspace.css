@@ -134,6 +134,7 @@
 .nw-workspace .nd-bottom-note { padding-top: 20px; padding-bottom: 20px; }
 .nw-resize-handle { position: absolute; top: 0; bottom: 0; left: calc(var(--nw-pane-width, 34%) - 5px); width: 10px; z-index: 12; cursor: col-resize; touch-action: none; outline: none; }
 .nw-resize-handle--sidebar { left: auto; right: -5px; }
+.nw-workspace .nw-resize-handle:focus-visible { outline: none; }
 .nw-resize-handle::before { content: ''; position: absolute; top: 0; bottom: 0; left: 4px; width: 2px; background: transparent; transition: background 120ms; }
 .nw-resize-handle::after { content: ''; position: absolute; top: 50%; left: 3px; width: 4px; height: 24px; transform: translateY(-50%); border-radius: 4px; background: var(--nc-border-strong); }
 .nw-resize-handle:hover::before, .nw-resize-handle:focus-visible::before, .nw-resize-handle[data-dragging=true]::before,
