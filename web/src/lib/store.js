@@ -34,6 +34,20 @@ export function useNetclip(active = true) {
   const [selectedId, setSelectedId] = useState(null)
   const [flashMessage, setFlashMessage] = useState(null)
   const [undoTarget, setUndoTarget] = useState(null)
+  // Keep only the latest pasted image locally: show it while uploading and reuse the
+  // same bytes for its preview instead of downloading the original straight back.
+  const [localImage, setLocalImage] = useState(null)
+  const [localImageSource, setLocalImageSource] = useState(null)
+  const localFile = localImage?.file
+  useEffect(() => {
+    if (!localFile) { setLocalImageSource(null); return }
+    const url = URL.createObjectURL(localFile)
+    setLocalImageSource({ file: localFile, url })
+    return () => URL.revokeObjectURL(url)
+  }, [localFile])
+  const localImageUrl = localImageSource?.file === localFile ? localImageSource?.url : null
+  const imageUrl = (item) => item?.id === localImage?.id && localImageUrl
+    ? localImageUrl : api.rawUrl(item)
 
   const queryRef = useRef(query)
   queryRef.current = query
@@ -264,10 +278,18 @@ export function useNetclip(active = true) {
     async (files) => {
       const results = []
       for (const file of files) {
-        const res = await api.addFile(file)
-        sentByMe.current.add(res.item.id)
-        merge(res.item)
-        results.push(res)
+        const preview = file.type.startsWith('image/') && file.type !== 'image/svg+xml' ? { file } : null
+        if (preview) setLocalImage(preview)
+        try {
+          const res = await api.addFile(file)
+          if (preview) setLocalImage((current) => current === preview ? { ...preview, id: res.item.id } : current)
+          sentByMe.current.add(res.item.id)
+          merge(res.item)
+          results.push(res)
+        } catch (err) {
+          if (preview) setLocalImage((current) => current === preview ? null : current)
+          throw err
+        }
       }
       if (results.length) setSelectedId(results[results.length - 1].item.id)
       return results
@@ -380,6 +402,8 @@ export function useNetclip(active = true) {
     sentByMe: sentByMe.current,
     addText,
     addFiles,
+    imageUrl,
+    pendingImage: localImage && localImage.id == null ? { file: localFile, url: localImageUrl } : null,
     togglePin,
     remove,
     undoTarget,

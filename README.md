@@ -24,6 +24,7 @@ The interface uses English throughout, with shared compact controls and menus, l
 - Paste with **Cmd/Ctrl + V** while the Clipboard tab is active, or drag in files.
 - Search your history, copy text, open links, download attachments, and pin items to keep them.
 - On a phone, use **Add to netclip** to send content. Long-press images to use the browser's copy/save actions; image-copy buttons appear when supported.
+- Pasted images show a local preview while uploading, then reuse the original local image for preview without downloading it again. The original file is preserved for other devices and downloads.
 - Deleting a clipboard item offers a six-second undo window. Drive deletions are permanent and do not use this undo flow.
 - Connected devices receive updates automatically.
 

@@ -168,7 +168,7 @@ export function Snackbar({ label, actionLabel, onAction, desktop }) {
   return (
     <div className={`nc-snackbar nc-chrome${desktop ? ' nc-snackbar--desktop' : ''}`} role="status">
       <span>{label}</span>
-      <button onClick={onAction}>{actionLabel}</button>
+      {actionLabel && <button onClick={onAction}>{actionLabel}</button>}
     </div>
   )
 }

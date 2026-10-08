@@ -1221,6 +1221,33 @@ mark {
 
 /* ── Misc ───────────────────────────────────────────────────────────────── */
 
+.nc-image-upload {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+  padding: 8px 12px;
+  background: var(--nc-bg);
+  border: 1px solid var(--nc-border);
+  border-radius: 10px;
+  font-size: 12px;
+}
+.nc-image-upload img { width: 44px; height: 44px; object-fit: contain; flex: none; }
+.nc-image-upload > div { min-width: 0; display: grid; gap: 3px; }
+.nc-image-upload strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+.nc-image-upload span { color: var(--nc-text-secondary); }
+.nc-image-upload .nc-spinner { flex: none; margin-left: 8px; }
+.nc-desktop .nc-image-upload {
+  position: absolute;
+  z-index: 5;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: calc(100% - 24px);
+  box-shadow: var(--nc-shadow-sm);
+}
+.nc-mobile .nc-image-upload { margin: 8px 14px 0; }
+
 .nc-spinner {
   width: 14px;
   height: 14px;

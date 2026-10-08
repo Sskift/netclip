@@ -17,7 +17,7 @@ function MetaRow({ label, children }) {
   )
 }
 
-export default function Preview({ item, text, hasText, onFetchText }) {
+export default function Preview({ item, imageSrc, text, hasText, onFetchText }) {
   const [now, setNow] = useState(() => Date.now())
 
   useEffect(() => {
@@ -52,7 +52,8 @@ export default function Preview({ item, text, hasText, onFetchText }) {
       <div className="nc-preview-body nc-content">
         {item.kind === 'image' ? (
           <img
-            src={api.rawUrl(item)}
+            src={imageSrc || api.rawUrl(item)}
+            decoding="async"
             alt={item.filename || t('kind.image')}
             className={item.mime === 'image/png' ? 'nc-checker' : undefined}
             style={{ aspectRatio: item.width && item.height ? `${item.width}/${item.height}` : undefined }}

@@ -5,6 +5,7 @@ import { dayGroup, relativeTime } from '../lib/time.js'
 import { ageOpacity, highlight, safeUrl, terminalSnippet, titleOf } from '../lib/format.js'
 import { phoneUrl } from '../lib/qr.js'
 import Preview from './Preview.jsx'
+import ImageUpload from './ImageUpload.jsx'
 import PageHeading from './PageHeading.jsx'
 import Menu from './Menu.jsx'
 import ResizeHandle from './ResizeHandle.jsx'
@@ -340,6 +341,7 @@ export default function Desktop({ nc, ui, active = true }) {
       </div>
 
       <div className="nc-body" ref={bodyRef}>
+        <ImageUpload image={nc.pendingImage} />
         {!items.length ? (
           <EmptyState query={query} loading={nc.loading} origin={origin} onQr={() => ui.openQr(origin)} onCopySnippet={ui.copySnippet} />
         ) : (
@@ -374,6 +376,7 @@ export default function Desktop({ nc, ui, active = true }) {
               controls="clipboard-list" defaultRatio={0.34} minSize={240} maxSize={900} minRemaining={300} />
             <Preview
               item={selected}
+              imageSrc={selected?.kind === 'image' ? nc.imageUrl(selected) : undefined}
               text={nc.textOf(selected)}
               hasText={nc.hasFullText(selected)}
               onFetchText={nc.fetchContent}

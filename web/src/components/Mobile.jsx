@@ -6,6 +6,7 @@ import { dimensions, highlight, prettyUrl, safeUrl, titleOf } from '../lib/forma
 import { capabilities } from '../lib/clipboard.js'
 import * as Icon from './Icons.jsx'
 import PageHeading from './PageHeading.jsx'
+import ImageUpload from './ImageUpload.jsx'
 
 const FRESH_WINDOW_MS = 10 * 60 * 1000
 const SWIPE_THRESHOLD = 0.25 // of card width
@@ -162,7 +163,7 @@ function Card({ item, fresh, highlight: isHighlighted, query, now, nc, ui }) {
               exact <img> is the only way an image reaches a phone's clipboard on http. */}
           <figure className="nc-card-figure nc-content">
             <img
-              src={api.rawUrl(item)}
+              src={nc.imageUrl(item)}
               alt={item.filename || t('kind.image')}
               loading="lazy"
               decoding="async"
@@ -339,6 +340,8 @@ export default function Mobile({ nc, ui }) {
           {nc.connection === 'live' ? t('mobile.live') : t('mobile.reconnecting')}
         </span>
       </header>
+
+      <ImageUpload image={nc.pendingImage} />
 
       <div
         className={`nc-feed${searching ? ' nc-feed--search' : ''}`}

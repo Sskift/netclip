@@ -260,6 +260,10 @@ export default function App({ active = true, onOpenDrive }) {
 
       {dropCount > 0 && <DropOverlay count={dropCount} />}
 
+      {!isDesktop && footerFlash && !nc.undoTarget && (
+        <Snackbar label={footerFlash.message} />
+      )}
+
       {nc.undoTarget && (
         <Snackbar
           label={t('snackbar.deleted')}

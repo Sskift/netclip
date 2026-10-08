@@ -89,20 +89,21 @@ export async function analyseImage(hash, buf) {
   try {
     // .rotate() with no argument bakes in the EXIF orientation and drops the rest of the
     // metadata — so no GPS coordinates survive into a thumbnail we serve to the LAN.
-    const pipeline = () => sharp(buf, DECODE).rotate()
-    const [thumb, avg] = await Promise.all([
-      pipeline()
-        .resize(THUMB_EDGE, THUMB_EDGE, {
-          fit: 'cover',
-          // A tall screenshot is identified by its top, not its middle.
-          position: height / width > 1.6 ? 'top' : 'centre',
-          withoutEnlargement: true,
-        })
-        .webp({ quality: 70, effort: 4 })
-        .toBuffer(),
-      pipeline().resize(1, 1, { fit: 'fill' }).removeAlpha().raw().toBuffer(),
+    const thumb = await sharp(buf, DECODE).rotate()
+      .resize(THUMB_EDGE, THUMB_EDGE, {
+        fit: 'cover',
+        // A tall screenshot is identified by its top, not its middle.
+        position: height / width > 1.6 ? 'top' : 'centre',
+        withoutEnlargement: true,
+      })
+      .webp({ quality: 70, effort: 4 })
+      .toBuffer()
+    // The placeholder only needs the thumbnail's colour. Decoding the original again
+    // for a single pixel doubles the expensive work on large pasted screenshots.
+    const [avg] = await Promise.all([
+      sharp(thumb).resize(1, 1, { fit: 'fill' }).toColourspace('srgb').removeAlpha().raw().toBuffer(),
+      writeAtomic(thumbPath(hash), thumb),
     ])
-    await writeAtomic(thumbPath(hash), thumb)
     out.has_thumb = 1
     out.color = '#' + [...avg.subarray(0, 3)].map((c) => c.toString(16).padStart(2, '0')).join('')
   } catch {

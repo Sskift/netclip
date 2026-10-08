@@ -206,8 +206,7 @@ export async function addImage(buf, { mime, filename, source = '' } = {}) {
     return { item: bumped, created: false }
   }
 
-  const analysis = await analyseImage(hash, buf)
-  await putBlob(hash, buf)
+  const [analysis] = await Promise.all([analyseImage(hash, buf), putBlob(hash, buf)])
   const name = cleanFilename(filename)
 
   return insertOrBump(
