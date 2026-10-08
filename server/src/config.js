@@ -25,6 +25,7 @@ export const config = {
   retention: {
     text: num(process.env.NETCLIP_RETENTION_DAYS, 7) * DAY,
     image: num(process.env.NETCLIP_IMAGE_RETENTION_DAYS, 3) * DAY,
+    file: num(process.env.NETCLIP_FILE_RETENTION_DAYS, 7) * DAY,
   },
 
   /** Backstops so a long-lived box stays healthy. Pinned items are never evicted. */

@@ -382,7 +382,7 @@ async function testMobile() {
   click(window, searchBtn)
   await sleep(150)
   check('search morphs the bar', !!q(window, '.nc-searchfield'))
-  check('filter chips appear', qa(window, '.nc-filter').length === 4)
+  check('filter chips appear', qa(window, '.nc-filter').length === 5)
   const searchInput = q(window, '.nc-searchfield input')
   type(window, searchInput, 'docker')
   await sleep(500)

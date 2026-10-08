@@ -128,7 +128,7 @@ function Card({ item, fresh, highlight: isHighlighted, query, now, nc, ui }) {
 
   const meta = (
     <div className="nc-card-meta nc-chrome">
-      {item.kind === 'image' ? <Icon.Image /> : url ? <Icon.Link /> : <Icon.Text />}
+      {item.kind === 'image' ? <Icon.Image /> : item.kind === 'file' ? <Icon.File /> : url ? <Icon.Link /> : <Icon.Text />}
       <span className={flash ? 'nc-card-meta--copied' : undefined}>
         {flash ? t('action.copied') : relativeTime(item.updatedAt, now)}
       </span>
@@ -195,6 +195,8 @@ function Card({ item, fresh, highlight: isHighlighted, query, now, nc, ui }) {
         </div>
       )}
 
+      {item.kind === 'file' && <div className="nc-card-dims">{formatBytes(item.bytes)}</div>}
+
       <div className="nc-card-actions nc-chrome">
         {url && (
           <button className="nc-btn nc-btn--primary" onClick={tapped(() => window.open(url.href, '_blank', 'noopener'))}>
@@ -216,9 +218,9 @@ function Card({ item, fresh, highlight: isHighlighted, query, now, nc, ui }) {
                 : t('action.copy')}
           </button>
         )}
-        {item.kind === 'image' && (
+        {item.kind !== 'text' && (
           <>
-            {capabilities.copyImage && (
+            {item.kind === 'image' && capabilities.copyImage && (
               <button
                 className="nc-btn nc-btn--primary"
                 onClick={tapped(() => ui.copyImage(item).then(confirmCopy, () => {}))}
@@ -410,7 +412,7 @@ export default function Mobile({ nc, ui }) {
       {searching ? (
         <div className="nc-search nc-chrome">
           <div className="nc-filters">
-            {['all', 'text', 'image', 'pinned'].map((f) => (
+            {['all', 'text', 'image', 'file', 'pinned'].map((f) => (
               <button
                 key={f}
                 className="nc-filter"

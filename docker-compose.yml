@@ -29,6 +29,7 @@ services:
       # Unpinned items disappear this long after they were last copied. Pins never expire.
       NETCLIP_RETENTION_DAYS: "7"
       NETCLIP_IMAGE_RETENTION_DAYS: "3"
+      NETCLIP_FILE_RETENTION_DAYS: "7"
 
       # Backstops so the box can't fill up. Pinned items are never evicted.
       NETCLIP_MAX_ITEMS: "500"

@@ -110,6 +110,7 @@ export async function handleApi(req, res, url) {
     return json(res, 200, {
       retentionDays: Math.round(config.retention.text / 86_400_000),
       imageRetentionDays: Math.round(config.retention.image / 86_400_000),
+      fileRetentionDays: Math.round(config.retention.file / 86_400_000),
       maxUploadBytes: config.maxUploadBytes,
       maxTextBytes: config.maxTextBytes,
       maxItems: config.maxItems,
@@ -174,19 +175,20 @@ export async function handleApi(req, res, url) {
     const filename = headerFilename(req)
     const buf = await readBody(req, config.maxUploadBytes)
 
-    if (mime.startsWith('image/')) {
+    if (mime.startsWith('image/') && mime !== 'image/svg+xml') {
       const { item, created } = await items.addImage(buf, { mime, filename, source })
       return json(res, created ? 201 : 200, { item: items.toDTO(item), created })
     }
 
-    if (buf.length <= config.maxTextBytes) {
+    if (!filename && buf.length <= config.maxTextBytes) {
       const text = asTextIfPossible(buf)
       if (text !== null) {
         const { item, created } = await items.addText(text, { source })
         return json(res, created ? 201 : 200, { item: items.toDTO(item), created })
       }
     }
-    throw new HttpError(415, 'Only images and text are supported right now.')
+    const { item, created } = await items.addFile(buf, { filename, source })
+    return json(res, created ? 201 : 200, { item: items.toDTO(item), created })
   }
 
   /* --------------------------------------------------------------- one item */
@@ -213,6 +215,7 @@ export async function handleApi(req, res, url) {
     }
 
     if (variant) {
+      if (row.kind === 'file' && variant === 'thumb') throw new HttpError(404, 'Not an image')
       // Text downloads go through the server too, so the browser writes the real body —
       // the client only ever holds the full content for items small enough to be inlined,
       // and building the file client-side would silently save a truncated preview.
@@ -228,13 +231,16 @@ export async function handleApi(req, res, url) {
       const wantThumb = variant === 'thumb' && row.has_thumb
       const ok = await sendFile(req, res, wantThumb ? thumbPath(row.hash) : blobPath(row.hash), {
         contentType: wantThumb ? 'image/webp' : servableType(row.mime),
-        cacheControl: IMMUTABLE,
+        cacheControl: row.kind === 'file' ? 'no-store' : IMMUTABLE,
         filename: row.filename || `netclip-${row.id}`,
-        inline: searchParams.get('download') !== '1',
+        inline: row.kind !== 'file' && searchParams.get('download') !== '1',
         // Blobs are inert data. Never let one be sniffed into something executable.
         headers: { 'X-Content-Type-Options': 'nosniff' },
       })
       if (!ok) throw new HttpError(404, 'File is gone')
+      if (row.kind === 'file' && req.method !== 'HEAD' && res.writableFinished && res.statusCode === 200) {
+        items.countCopy(id)
+      }
       return
     }
 

@@ -141,10 +141,7 @@ export default function App() {
       dragDepth.current = 0
       setDropCount(0)
       const { files, text } = readDrop(e)
-      const images = files.filter((f) => f.type.startsWith('image/') || f.type.startsWith('text/'))
-      const skipped = files.find((f) => !images.includes(f))
-      if (skipped) flashFooter(t('drop.rejected', { name: skipped.name }), 'error')
-      if (images.length || text) send({ files: images, text: images.length ? '' : text })
+      if (files.length || text) send({ files, text: files.length ? '' : text })
     }
 
     window.addEventListener('dragenter', onEnter)
@@ -169,7 +166,7 @@ export default function App() {
   const download = useCallback((item) => {
     const link = document.createElement('a')
     link.href = api.rawUrl(item, { download: true })
-    link.download = item.kind === 'image' ? item.filename || `netclip-${item.id}` : `netclip-${item.id}.txt`
+    link.download = item.kind !== 'text' ? item.filename || `netclip-${item.id}` : `netclip-${item.id}.txt`
     document.body.appendChild(link)
     link.click()
     link.remove()
@@ -238,7 +235,7 @@ export default function App() {
       {
         key: 'save',
         // On iOS a download lands in Files, never in Photos — say so rather than implying otherwise.
-        label: item.kind === 'image' && capabilities.ios ? t('action.saveToFiles') : t('action.download'),
+        label: item.kind !== 'text' && capabilities.ios ? t('action.saveToFiles') : t('action.download'),
         icon: <Icon.Download />,
         run: () => download(item),
       },

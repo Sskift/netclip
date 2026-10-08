@@ -12,6 +12,7 @@ const combo = (label) => (isMac ? MOD + label : `${MOD}+${label}`)
 /* ------------------------------------------------------------------- rows */
 
 function RowIcon({ item }) {
+  if (item.kind === 'file') return <span className="nc-row-icon"><Icon.File /></span>
   if (item.kind === 'image') {
     return (
       <img
@@ -126,7 +127,7 @@ function Footer({ nc, flash, willSend }) {
   const hints = []
   if (item?.kind === 'text') hints.push([t('action.copy'), '↵'])
   if (item?.flavor === 'url') hints.push([t('action.open'), combo('O')])
-  if (item?.kind === 'image') hints.push([t('action.download'), combo('S')])
+  if (item && item.kind !== 'text') hints.push([t('action.download'), combo('S')])
   hints.push([item?.pinned ? t('action.unpin') : t('action.pin'), `${ALT}P`])
   hints.push([t('action.showQr'), combo('G')])
   hints.push([t('action.delete'), isMac ? `${MOD}${BACKSPACE}` : `${MOD}+${BACKSPACE}`])
@@ -231,7 +232,7 @@ export default function Desktop({ nc, ui }) {
 
   const copySelected = useCallback(() => {
     if (!selected) return
-    if (selected.kind === 'image') return ui.download(selected)
+    if (selected.kind !== 'text') return ui.download(selected)
     const result = nc.copy(selected)
     if (result === 'ok') ui.flashFooter(t('action.copied'))
     else if (result === 'manual') ui.openManual(nc.textOf(selected))
@@ -355,6 +356,10 @@ export default function Desktop({ nc, ui }) {
           netclip
         </div>
         <div className="nc-header-actions">
+          <button className="nc-header-btn" onClick={ui.openAdd}>
+            <Icon.Plus />
+            {t('add.files')}
+          </button>
           <button className="nc-header-btn" onClick={() => ui.openQr(origin)}>
             <Icon.Qr />
             {t('header.openOnPhone')}

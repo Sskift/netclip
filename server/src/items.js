@@ -229,6 +229,28 @@ export async function addImage(buf, { mime, filename, source = '' } = {}) {
   )
 }
 
+/* --------------------------------------------------------------- file intake */
+
+export async function addFile(buf, { filename, source = '' } = {}) {
+  if (buf.length > config.maxUploadBytes) throw new HttpError(413, 'File exceeds the upload limit.')
+  const name = cleanFilename(filename) || 'file'
+  // Keep differently named files distinct, and never collide with a text/image payload.
+  const hash = sha256(Buffer.concat([Buffer.from(`file:${name}\0`), buf]))
+  const t = now()
+  const existing = store.getItemByHash(hash)
+  if (existing) {
+    const item = store.bumpItem(existing.id, { now: t, expiresAt: leaseFor('file', t), source })
+    broadcast('updated', toDTO(item))
+    return { item, created: false }
+  }
+  await putBlob(hash, buf)
+  return insertOrBump({
+    kind: 'file', filename: name, search_text: store.fold(name), preview: name,
+    hash, bytes: buf.length, mime: 'application/octet-stream', source,
+    created_at: t, updated_at: t, expires_at: leaseFor('file', t),
+  }, { at: t, kind: 'file', source })
+}
+
 /* ------------------------------------------------------------------ mutation */
 
 export function pin(id, pinned) {
@@ -253,7 +275,7 @@ export async function remove(id) {
   const row = store.getItem(id)
   if (!row) return false // deleting something already gone is a success, not an error
   store.deleteItem(id)
-  if (row.kind === 'image') await dropBlob(row.hash)
+  if (row.kind !== 'text') await dropBlob(row.hash)
   broadcast('deleted', { id })
   return true
 }
@@ -263,7 +285,7 @@ export async function clearUnpinned() {
   const rows = store.listAllUnpinned()
   for (const row of rows) {
     store.deleteItem(row.id)
-    if (row.kind === 'image') await dropBlob(row.hash)
+    if (row.kind !== 'text') await dropBlob(row.hash)
   }
   if (rows.length) broadcast('purged', { ids: rows.map((r) => r.id) })
   return rows.length

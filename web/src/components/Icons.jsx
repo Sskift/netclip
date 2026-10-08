@@ -43,6 +43,13 @@ export const Text = (p) => (
   </svg>
 )
 
+export const File = (p) => (
+  <svg {...base} {...p}>
+    <path d="M9 1.5H4a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V5.5z" />
+    <path d="M9 1.5v4h4M5.5 9h5M5.5 11.5h3" />
+  </svg>
+)
+
 export const Link = (p) => (
   <svg {...base} {...p}>
     <path d="M6.6 9.4a2.6 2.6 0 0 0 3.7 0l2-2a2.6 2.6 0 0 0-3.7-3.7l-.9.9" />

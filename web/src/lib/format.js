@@ -27,11 +27,11 @@ export function prettyUrl(text) {
 }
 
 export const typeLabel = (item) =>
-  item.kind === 'image' ? t('kind.image') : t(`kind.${item.flavor || 'text'}`)
+  item.kind !== 'text' ? t(`kind.${item.kind}`) : t(`kind.${item.flavor || 'text'}`)
 
 /** The one-line title a list row shows. */
 export function titleOf(item) {
-  if (item.kind === 'image') return item.filename || t('kind.image')
+  if (item.kind !== 'text') return item.filename || t(`kind.${item.kind}`)
   if (item.flavor === 'url') return prettyUrl(item.content ?? item.preview)
   return item.preview || ' '
 }

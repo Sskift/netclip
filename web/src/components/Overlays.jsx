@@ -228,6 +228,10 @@ export function AddSheet({ onSend, onFiles, onClose }) {
           }}
         />
         <div className="nc-compose-row">
+          <button className="nc-btn" onClick={() => pickFiles('')}>
+            <Icon.File />
+            {t('add.files')}
+          </button>
           <button className="nc-btn" onClick={() => pickFiles('image/*')}>
             <Icon.Image />
             {t('add.photos')}

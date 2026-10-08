@@ -42,7 +42,7 @@ export default function Preview({ item, text, hasText, onFetchText }) {
     <div className="nc-preview">
       <div className="nc-preview-header">
         <span className="nc-preview-title">
-          {item.kind === 'image' ? item.filename || t('kind.image') : typeLabel(item)}
+          {item.kind !== 'text' ? item.filename || typeLabel(item) : typeLabel(item)}
         </span>
         {dims && <span>· {dims}</span>}
       </div>
@@ -58,6 +58,12 @@ export default function Preview({ item, text, hasText, onFetchText }) {
             style={{ aspectRatio: item.width && item.height ? `${item.width}/${item.height}` : undefined }}
             draggable
           />
+        ) : item.kind === 'file' ? (
+          <div className="nc-preview-link">
+            <Icon.File style={{ width: 48, height: 48 }} />
+            <div className="nc-url" dir="auto">{item.filename}</div>
+            <div className="nc-caption">{formatBytes(item.bytes)}</div>
+          </div>
         ) : showQr ? (
           <div className="nc-preview-link">
             <QrCode value={url.href} small />
@@ -109,14 +115,14 @@ export default function Preview({ item, text, hasText, onFetchText }) {
       </dl>
 
       <div className="nc-actionrow">
-        {item.kind === 'image' && (
+        {item.kind !== 'text' && (
           <>
             <a className="nc-btn" href={api.rawUrl(item, { download: true })} download={item.filename || ''}>
               <Icon.Download />
               {t('action.download')}
             </a>
             <span className="nc-kbd">{MOD_S}</span>
-            <span>{t('hint.longPressDesktop')}</span>
+            {item.kind === 'image' && <span>{t('hint.longPressDesktop')}</span>}
           </>
         )}
         {url && (

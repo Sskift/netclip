@@ -19,7 +19,7 @@ export async function sweep() {
   const collect = async (rows) => {
     for (const row of rows) {
       store.deleteItem(row.id)
-      if (row.kind === 'image') await dropBlob(row.hash)
+      if (row.kind !== 'text') await dropBlob(row.hash)
       removed.push(row.id)
     }
   }
@@ -34,11 +34,11 @@ export async function sweep() {
   if (overCount > 0) await collect(store.listEvictable(floor).slice(0, overCount))
 
   if (store.totalBytes() > config.maxTotalBytes) {
-    // Only images free meaningful disk; evicting text rows would spin this loop and delete
+    // Images and files free meaningful disk; evicting text rows would spin this loop and delete
     // the entire history for nothing.
     let total = store.totalBytes()
     const doomed = []
-    for (const row of store.listEvictableImages(floor)) {
+    for (const row of store.listEvictableBlobs(floor)) {
       if (total <= config.maxTotalBytes) break
       doomed.push(row)
       total -= row.bytes

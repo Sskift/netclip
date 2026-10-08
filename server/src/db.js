@@ -8,15 +8,10 @@ for (const dir of [config.dataDir, paths.blobs, paths.thumbs, paths.tmp]) {
 
 export const db = new DatabaseSync(paths.db)
 
-db.exec(`
-  PRAGMA journal_mode = WAL;
-  PRAGMA synchronous = NORMAL;
-  PRAGMA foreign_keys = ON;
-  PRAGMA busy_timeout = 5000;
-
+const ITEM_SCHEMA = `
   CREATE TABLE IF NOT EXISTS items (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    kind        TEXT    NOT NULL CHECK (kind IN ('text', 'image')),
+    kind        TEXT    NOT NULL CHECK (kind IN ('text', 'image', 'file')),
     -- text rows: the full payload. image rows: NULL.
     content     TEXT,
     -- NFKC-folded, lowercased haystack for LIKE search: content + filename.
@@ -45,7 +40,30 @@ db.exec(`
     -- NULL means "no lease, never expires" (i.e. pinned)
     expires_at  INTEGER
   );
+`
 
+db.exec('PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;')
+const oldSchema = db.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'items'").get()
+if (oldSchema && !oldSchema.sql.includes("'file'")) {
+  // SQLite cannot alter a CHECK constraint. Preserve every row and the ID high-water mark.
+  db.exec('BEGIN IMMEDIATE')
+  try {
+    const sequence = db.prepare("SELECT seq FROM sqlite_sequence WHERE name = 'items'").get()?.seq ?? 0
+    db.exec('ALTER TABLE items RENAME TO items_legacy')
+    db.exec(ITEM_SCHEMA)
+    db.exec('INSERT INTO items SELECT * FROM items_legacy; DROP TABLE items_legacy;')
+    db.prepare("DELETE FROM sqlite_sequence WHERE name = 'items'").run()
+    db.prepare("INSERT INTO sqlite_sequence (name, seq) VALUES ('items', ?)").run(sequence)
+    db.exec('COMMIT')
+  } catch (error) {
+    db.exec('ROLLBACK')
+    throw error
+  }
+} else {
+  db.exec(ITEM_SCHEMA)
+}
+
+db.exec(`
   CREATE UNIQUE INDEX IF NOT EXISTS idx_items_hash   ON items (hash);
   CREATE INDEX IF NOT EXISTS        idx_items_order  ON items (pinned DESC, updated_at DESC, id DESC);
   CREATE INDEX IF NOT EXISTS        idx_items_expiry ON items (expires_at) WHERE expires_at IS NOT NULL;
@@ -108,9 +126,9 @@ const q = {
     WHERE pinned = 0 AND updated_at <= ?
     ORDER BY updated_at ASC, id ASC
   `),
-  evictableImages: db.prepare(`
+  evictableBlobs: db.prepare(`
     SELECT id, kind, hash, bytes FROM items
-    WHERE pinned = 0 AND kind = 'image' AND updated_at <= ?
+    WHERE pinned = 0 AND kind IN ('image', 'file') AND updated_at <= ?
     ORDER BY updated_at ASC, id ASC
   `),
   countUnpinned: db.prepare(`SELECT COUNT(*) AS n FROM items WHERE pinned = 0`),
@@ -147,7 +165,7 @@ export const deleteItem = (id) => q.del.run(id).changes > 0
 export const getStats = () => q.stats.get()
 export const listExpired = (now) => q.expired.all(now)
 export const listEvictable = (before) => q.evictable.all(before)
-export const listEvictableImages = (before) => q.evictableImages.all(before)
+export const listEvictableBlobs = (before) => q.evictableBlobs.all(before)
 export const listAllUnpinned = () => q.allUnpinned.all()
 export const allHashes = () => new Set(q.allHashes.all().map((r) => r.hash))
 export const countUnpinned = () => q.countUnpinned.get().n

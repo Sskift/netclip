@@ -104,6 +104,7 @@ const STRINGS = {
     'add.title': 'Add to netclip',
     'add.placeholder': 'Paste or type…',
     'add.photos': 'Photos',
+    'add.files': 'Files',
     'add.camera': 'Camera',
 
     'mobile.new': '{n} new',
@@ -113,15 +114,17 @@ const STRINGS = {
     'filter.all': 'All',
     'filter.text': 'Text',
     'filter.images': 'Images',
+    'filter.file': 'Files',
     'filter.pinned': 'Pinned',
 
     'confirm.deleteAll': 'Delete every unpinned item? Pinned items are kept.',
     'qr.title': 'Open on phone',
-    'qr.hint': 'Scan with your phone’s camera — same wifi required',
+    'qr.hint': 'Scan with your phone’s camera to open this page',
     'qr.unreachable': 'netclip can’t tell what address your phone should use.',
     'qr.unreachableHint':
       'You opened this page on localhost, and the server can only see a container-internal address for itself. Open this page by the machine’s LAN address instead, then the code will be right.',
     'kind.image': 'Image',
+    'kind.file': 'File',
     'kind.url': 'Link',
     'kind.json': 'JSON',
     'kind.color': 'Colour',
@@ -206,6 +209,7 @@ const STRINGS = {
     'add.title': '添加到 netclip',
     'add.placeholder': '粘贴或输入…',
     'add.photos': '照片',
+    'add.files': '文件',
     'add.camera': '相机',
 
     'mobile.new': '{n} 条新内容',
@@ -215,15 +219,17 @@ const STRINGS = {
     'filter.all': '全部',
     'filter.text': '文本',
     'filter.images': '图片',
+    'filter.file': '文件',
     'filter.pinned': '已固定',
 
     'confirm.deleteAll': '删除所有未固定的内容？已固定的会保留。',
     'qr.title': '在手机上打开',
-    'qr.hint': '用手机相机扫描 — 需要在同一个 wifi 下',
+    'qr.hint': '用手机相机扫描即可打开本页',
     'qr.unreachable': 'netclip 不知道该让手机连哪个地址。',
     'qr.unreachableHint':
       '你是用 localhost 打开这个页面的，而服务端只能看到容器内网地址。改用这台机器的内网 IP 打开本页，二维码就是对的。',
     'kind.image': '图片',
+    'kind.file': '文件',
     'kind.url': '链接',
     'kind.json': 'JSON',
     'kind.color': '颜色',
