@@ -130,3 +130,13 @@ export const Expand = (p) => (
     <path d="M4.6 6.4 8 9.8l3.4-3.4" />
   </svg>
 )
+
+export const Folder = (p) => <svg {...base} {...p}><path d="M1.5 4a1 1 0 0 1 1-1H6l1.5 2h6a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1z" /></svg>
+export const FolderPlus = (p) => <svg {...base} {...p}><path d="M1.5 4a1 1 0 0 1 1-1H6l1.5 2h6a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1zM8 7v4M6 9h4" /></svg>
+export const Chevron = (p) => <svg {...base} {...p}><path d="m6 4 4 4-4 4" /></svg>
+export const Cloud = (p) => <svg {...base} {...p}><path d="M4.5 12.5h7a3 3 0 0 0 .5-6A4.5 4.5 0 0 0 3.4 5 3.8 3.8 0 0 0 4.5 12.5Z" /></svg>
+export const Upload = (p) => <svg {...base} {...p}><path d="M8 11V2m-3 3 3-3 3 3M2 11v2a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-2" /></svg>
+export const Move = (p) => <svg {...base} {...p}><path d="M8 2v12M2 8h12M6 4l2-2 2 2M6 12l2 2 2-2M4 6 2 8l2 2m8-4 2 2-2 2" /></svg>
+export const List = (p) => <svg {...base} {...p}><path d="M6 4h8M6 8h8M6 12h8M2 4h.5M2 8h.5M2 12h.5" /></svg>
+export const Grid = (p) => <svg {...base} {...p}>{[[2,2],[9,2],[2,9],[9,9]].map(([x,y]) => <rect key={`${x}-${y}`} x={x} y={y} width="5" height="5" rx="1" />)}</svg>
+export const Edit = (p) => <svg {...base} {...p}><path d="m10 2 4 4-8 8H2v-4Zm-2 2 4 4" /></svg>

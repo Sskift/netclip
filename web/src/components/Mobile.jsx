@@ -336,6 +336,7 @@ export default function Mobile({ nc, ui }) {
           <img src="/icon.svg" alt="" />
           netclip
         </div>
+        <a className="nc-header-btn nc-drive-link" href="/drive"><Icon.Cloud />{t('header.drive')}</a>
         <span className="nc-mheader-status">
           <span className={`nc-dot${nc.connection === 'live' ? '' : ' nc-dot--off'}`} />
           {nc.connection === 'live' ? t('mobile.live') : t('mobile.reconnecting')}

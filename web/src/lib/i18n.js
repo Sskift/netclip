@@ -28,6 +28,7 @@ const key = (k) => (isMac ? MOD + k : `${MOD}+${k}`)
 const STRINGS = {
   en: {
     'header.openOnPhone': 'Open on phone',
+    'header.drive': 'Drive',
     'omnibar.placeholder': `Search — or press ${key('V')} to send your clipboard`,
     'omnibar.placeholderTouch': 'Search',
 
@@ -133,6 +134,7 @@ const STRINGS = {
 
   zh: {
     'header.openOnPhone': '在手机上打开',
+    'header.drive': '云盘',
     'omnibar.placeholder': `搜索 — 或按 ${key('V')} 发送剪贴板`,
     'omnibar.placeholderTouch': '搜索',
 

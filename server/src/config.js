@@ -34,6 +34,7 @@ export const config = {
 
   /** Per-upload limits. */
   maxUploadBytes: num(process.env.NETCLIP_MAX_UPLOAD_MB, 25) * MiB,
+  driveMaxUploadBytes: num(process.env.NETCLIP_DRIVE_MAX_UPLOAD_MB, 512) * MiB,
   maxTextBytes: num(process.env.NETCLIP_MAX_TEXT_KB, 1024) * 1024,
 
   /** How much text a list row shows. */
@@ -64,4 +65,5 @@ export const paths = {
   blobs: resolve(config.dataDir, 'blobs'),
   thumbs: resolve(config.dataDir, 'thumbs'),
   tmp: resolve(config.dataDir, 'tmp'),
+  drive: resolve(config.dataDir, 'drive'),
 }

@@ -356,10 +356,10 @@ export default function Desktop({ nc, ui }) {
           netclip
         </div>
         <div className="nc-header-actions">
-          <button className="nc-header-btn" onClick={ui.openAdd}>
-            <Icon.Plus />
-            {t('add.files')}
-          </button>
+          <a className="nc-header-btn nc-drive-link" href="/drive">
+            <Icon.Cloud />
+            {t('header.drive')}
+          </a>
           <button className="nc-header-btn" onClick={() => ui.openQr(origin)}>
             <Icon.Qr />
             {t('header.openOnPhone')}
