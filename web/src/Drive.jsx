@@ -11,6 +11,7 @@ import './drive.css'
 const tr = (zh, en) => lang === 'zh' ? zh : en
 const listUrl = (id) => `/api/drive/entries${id ? `?parent=${id}` : ''}`
 const downloadUrl = (entry) => `/api/drive/entries/${entry.id}/download`
+const batchDownloadUrl = (entries) => `/api/drive/download?ids=${entries.map((entry) => entry.id).join(',')}`
 const dateOf = (time) => new Date(time).toLocaleDateString('en', { year: 'numeric', month: 'short', day: 'numeric' })
 const errorText = (error) => {
   if (/already exists/.test(error.message)) return tr('同一文件夹里已有这个名字，请换一个。', 'This name is already used in this folder.')
@@ -120,7 +121,7 @@ export default function Drive({ active = true, folderId, onNavigate }) {
       { key: 'files', label: 'Upload files', icon: <Icon.File />, run: () => input.current.click() },
       { key: 'folder', label: 'Upload folder', icon: <Icon.Folder />, run: () => folderInput.current.click() },
     ] : [
-      ...(menu.entry.kind === 'file' ? [{ key: 'download', label: 'Download', icon: <Icon.Download />, href: downloadUrl(menu.entry), download: menu.entry.name }] : []),
+      { key: 'download', label: menu.entry.kind === 'folder' ? 'Download ZIP' : 'Download', icon: <Icon.Download />, href: downloadUrl(menu.entry), download: menu.entry.name + (menu.entry.kind === 'folder' ? '.zip' : '') },
       { key: 'rename', label: 'Rename', icon: <Icon.Edit />, run: () => openDialog('rename', [menu.entry]) },
       { key: 'move', label: 'Move to…', icon: <Icon.Move />, run: () => openDialog('move', [menu.entry]) },
       { key: 'separator', separator: true },
@@ -232,7 +233,7 @@ export default function Drive({ active = true, folderId, onNavigate }) {
         }} />
       </section>
       <div className="nd-toolbar">
-        {selected.size ? <div className="nd-selection"><strong>{tr(`已选择 ${selected.size} 项`, `${selected.size} selected`)}</strong><button onClick={() => openDialog('move', chosen)}><Icon.Move />{tr('移动', 'Move')}</button><button onClick={() => openDialog('delete', chosen)}><Icon.Trash />{tr('删除', 'Delete')}</button><button className="nd-clear" onClick={() => setSelected(new Set())} aria-label={tr('取消选择', 'Clear selection')}><Icon.Close /></button></div>
+        {selected.size ? <div className="nd-selection"><strong>{tr(`已选择 ${selected.size} 项`, `${selected.size} selected`)}</strong><a href={batchDownloadUrl(chosen)} download="netclip-download.zip"><Icon.Download />Download ZIP</a><button onClick={() => openDialog('move', chosen)}><Icon.Move />{tr('移动', 'Move')}</button><button onClick={() => openDialog('delete', chosen)}><Icon.Trash />{tr('删除', 'Delete')}</button><button className="nd-clear" onClick={() => setSelected(new Set())} aria-label={tr('取消选择', 'Clear selection')}><Icon.Close /></button></div>
           : <span className="nd-count">{tr(`${entries.length} 个项目`, `${entries.length} items`)}</span>}
         <div className="nd-view-tools"><button className="nd-sort" aria-label="Sort by" aria-haspopup="menu" aria-expanded={menu?.kind === 'sort'} onClick={(e) => showMenu(e, 'sort')}><span>{sortOptions.find(([key]) => key === sort)[1]}</span><Icon.Expand /></button><div className="nd-view-toggle">{['list', 'grid'].map((v) => <button key={v} className={view === v ? 'is-active' : ''} aria-label={v === 'list' ? tr('列表视图', 'List view') : tr('网格视图', 'Grid view')} aria-pressed={view === v} onClick={() => { setView(v); localStorage.setItem('nc.drive.view', v) }}>{v === 'list' ? <Icon.List /> : <Icon.Grid />}</button>)}</div></div>
       </div>

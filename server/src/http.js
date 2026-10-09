@@ -25,7 +25,7 @@ export function noContent(res) {
   res.end()
 }
 
-const contentDisposition = (filename, inline) => {
+export const contentDisposition = (filename, inline) => {
   const ascii = filename.replace(/["\\\r\n]/g, '_').replace(/[^\x20-\x7e]/g, '_')
   return `${inline ? 'inline' : 'attachment'}; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(filename)}`
 }

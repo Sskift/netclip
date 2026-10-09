@@ -36,12 +36,62 @@ The interface uses English throughout, with shared compact controls and menus, l
 - Folder imports retain the top-level folder name and nested paths. Drag-and-drop also preserves empty folders; the system folder picker supplies files only, so empty directories are omitted.
 - Uploading a name that already exists adds a numbered suffix instead of overwriting content. Re-importing a folder creates a separately numbered folder.
 - Uploads show progress, and an in-progress file transfer can be cancelled. Drive files retain their original bytes and are separate from clipboard cleanup.
+- Select multiple files or folders and choose **Download ZIP** to download them together. Folder menus also offer **Download ZIP**. Archives retain nested paths and empty folders, and stream directly to the browser without buffering all file contents in memory.
 
 ### Adjustable panes
 
 On desktop, drag the divider between the clipboard list and preview, or the right edge of the Drive sidebar. Widths are remembered in the current browser and constrained to keep both sides usable.
 
 Double-click a divider to reset it. With the divider focused, use **Left/Right** for 10 px adjustments, **Shift + Left/Right** for 40 px adjustments, **Home/End** for the width limits, and **Enter** to reset. Phones retain the single-column layout.
+
+## CLI for agents and terminals
+
+The standalone CLI uses **Node.js 22 or later** and has no package dependencies. The server still requires Node.js 24. From a clone, run `node cli/netclip.mjs --help`, or install the command on macOS/Linux:
+
+```sh
+mkdir -p ~/.local/bin
+install -m 755 cli/netclip.mjs ~/.local/bin/netclip
+# Add ~/.local/bin to PATH if it is not already there.
+netclip config http://100.106.235.95:3210
+netclip drive ls / --json
+```
+
+On Windows, use `node path\to\netclip\cli\netclip.mjs` with the same arguments. Connect to the server's Tailscale network when using its Tailscale address.
+
+```sh
+# Organize and transfer files, including complete folder trees.
+netclip drive mkdir /Projects/Notes
+netclip drive upload ./report.pdf ./assets --to /Projects --json
+netclip drive tree /Projects --json
+netclip drive download /Projects/report.pdf /Projects/assets --to ./downloads --json
+netclip drive rename /Projects/report.pdf final.pdf
+netclip drive move /Projects/final.pdf --to /Projects/Notes
+
+# Clipboard commands, including piped text and image uploads.
+printf 'Ready for review' | netclip clipboard put --json
+netclip clipboard upload ./screenshot.png --json
+netclip clipboard list --query review --json
+netclip clipboard get 123
+netclip clipboard download 123 --to ./downloads
+```
+
+Use `--json` for machine-readable success output and errors; failures return a nonzero exit code. Multi-file operations report completed entries if a later operation fails. Remote entries can be addressed by absolute paths or `id:123`. `netclip --help` lists all commands, including pin/unpin and deletion. `drive rm` deletes a folder and its contents.
+
+### Download directories per Drive folder
+
+```sh
+netclip drive bind /Projects ~/Downloads/Projects
+netclip drive bind /Projects/Notes ~/Documents/Notes
+netclip drive bindings --json
+netclip drive download /Projects/Notes --json
+netclip drive unbind /Projects/Notes
+```
+
+Bindings belong to the current computer and server, keyed by folder ID so remote renames and moves do not break them. For each selected entry, the CLI uses `--to` first, then the nearest bound folder, then `~/Downloads/Netclip`. Bind `/` to change that server's default download directory. A folder download keeps its complete tree together at the selected destination; a direct download from a subfolder uses the nearest binding for that subfolder. With `--to`, a selected folder is created inside that directory; downloading `/` writes its contents directly there.
+
+Existing local files receive numbered suffixes. Symlinks are not included when importing a local tree. Bindings are saved in `~/.config/netclip/config.json` (or `$XDG_CONFIG_HOME/netclip/config.json`). Use `--config` / `NETCLIP_CONFIG` to select another config and `--url` / `NETCLIP_URL` to override the server for one command.
+
+**These directory bindings apply to CLI/agent downloads.** Web downloads use the browser's download location or save dialog; the HTTP website cannot set an arbitrary local filesystem path.
 
 ## Run it
 
@@ -194,7 +244,9 @@ Replace `localhost` with the server address for remote access. URL-encode non-AS
 | `GET` | `/api/drive/entries?parent=<id>&q=` | List a Drive folder; omit `parent` for the root |
 | `POST` | `/api/drive/folders` | Create a folder with `{"name":"Photos","parentId":null}` |
 | `POST` | `/api/drive/upload?parent=<id>` | Upload raw file bytes with `X-Filename`; omit `parent` for the root |
-| `GET` | `/api/drive/entries/:id/download` | Download a Drive file |
+| `GET` | `/api/drive/entries/:id` | Read entry metadata and its parent breadcrumbs |
+| `GET` | `/api/drive/entries/:id/download` | Download a file, or a folder as a ZIP |
+| `GET` | `/api/drive/download?ids=1,2,3` | Download selected files/folders as one ZIP; overlapping selections are included once |
 | `PATCH` | `/api/drive/entries/:id` | Rename with `name`, move with `parentId`, or both |
 | `DELETE` | `/api/drive/entries/:id` | Permanently delete a file or folder and its contents |
 | `GET` | `/api/events` | Receive live updates through server-sent events |

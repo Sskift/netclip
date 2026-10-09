@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "LAN clipboard — Raycast-style clipboard history shared across your devices",
+  "description": "LAN clipboard \u2014 Raycast-style clipboard history shared across your devices",
   "workspaces": [
     "server",
     "web"
@@ -27,5 +27,8 @@
   "devDependencies": {
     "jsdom": "^29.1.1",
     "playwright-core": "^1.62.1"
+  },
+  "bin": {
+    "netclip": "cli/netclip.mjs"
   }
 }

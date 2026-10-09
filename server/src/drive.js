@@ -5,6 +5,7 @@ import { config, paths } from './config.js'
 import { db } from './db.js'
 import { broadcast } from './events.js'
 import { HttpError, json, readBody, sendFile } from './http.js'
+import { sendZip } from './zip.js'
 
 // Permanent drive files have their own table and directory, outside clipboard cleanup.
 await mkdir(paths.drive, { recursive: true })
@@ -111,8 +112,42 @@ async function upload(req, res, url) {
   json(res, 201, { entry })
 }
 
+function archiveEntries(ids) {
+  const selected = new Set(ids)
+  const roots = ids.map((id) => {
+    const row = get(id)
+    if (!row) throw new HttpError(404, 'File or folder not found')
+    return row
+  }).filter((row) => !ancestors(row.parent_id).some((parent) => selected.has(parent.id)))
+  const children = db.prepare('SELECT * FROM drive_entries WHERE parent_id = ? ORDER BY name COLLATE NOCASE')
+  const names = new Set(), entries = []
+  for (const root of roots) {
+    let name = root.name
+    const ext = root.kind === 'file' ? extname(name) : '', stem = name.slice(0, name.length - ext.length)
+    for (let n = 2; names.has(name.toLowerCase()); n++) name = `${stem} (${n})${ext}`
+    names.add(name.toLowerCase())
+    const pending = [{ row: root, path: name }]
+    while (pending.length) {
+      const { row, path } = pending.pop()
+      entries.push({ path, bytes: row.bytes, updatedAt: row.updated_at,
+        source: row.kind === 'file' ? join(paths.drive, row.blob_key) : null })
+      if (row.kind === 'folder') {
+        for (const child of children.all(row.id).reverse()) pending.push({ row: child, path: `${path}/${child.name}` })
+      }
+    }
+  }
+  return entries
+}
+
 export async function handleDrive(req, res, url) {
   const method = req.method === 'HEAD' ? 'GET' : req.method
+  if (url.pathname === '/api/drive/download' && method === 'GET') {
+    const ids = [...new Set((url.searchParams.get('ids') || '').split(',').map(idOf))]
+    if (!ids.length || ids.includes(null)) throw new HttpError(400, 'Select files or folders to download')
+    const entries = archiveEntries(ids)
+    const filename = ids.length === 1 ? `${get(ids[0]).name}.zip` : 'netclip-download.zip'
+    return sendZip(req, res, entries, filename)
+  }
   if (url.pathname === '/api/drive/entries' && method === 'GET') {
     const parent = idOf(url.searchParams.get('parent'))
     folder(parent)
@@ -148,7 +183,9 @@ export async function handleDrive(req, res, url) {
     if (!sent) throw new HttpError(404, 'File content not found')
     return
   }
-  if (match[2]) throw new HttpError(405, 'Only files can be downloaded')
+  if (match[2] && method === 'GET') return sendZip(req, res, archiveEntries([id]), `${row.name}.zip`)
+  if (match[2]) throw new HttpError(405, 'Method not allowed')
+  if (method === 'GET') return json(res, 200, { entry: dto(row), breadcrumbs: ancestors(row.parent_id) })
   if (method === 'PATCH') {
     const body = await bodyOf(req)
     const name = body.name === undefined ? row.name : nameOf(body.name)

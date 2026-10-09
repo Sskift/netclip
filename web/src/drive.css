@@ -60,7 +60,7 @@
 .nd-view-toggle button.is-active { background: var(--nc-bg-selected); color: var(--nc-text); }
 .nd-selection { display: flex; align-items: center; gap: 16px; font-size: 12px; }
 .nd-selection strong { color: var(--nd-accent); font-weight: 500; }
-.nd-selection button { display: flex; align-items: center; gap: 6px; }
+.nd-selection button, .nd-selection a { display: flex; align-items: center; gap: 6px; }
 .nd-clear { color: var(--nc-text-tertiary); }
 .nd-content { flex: 1; min-height: 350px; }
 .nd-table { width: 100%; }
