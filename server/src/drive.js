@@ -25,6 +25,22 @@ db.exec(`
 `)
 
 const get = (id) => db.prepare('SELECT * FROM drive_entries WHERE id = ?').get(id)
+
+// WebDAV uses the same logical tree and original blobs as the UI and CLI.
+export function driveChildren(parentId) {
+  return db.prepare('SELECT * FROM drive_entries WHERE parent_id IS ? ORDER BY name COLLATE NOCASE').all(parentId)
+}
+export function resolveDrivePath(names) {
+  let entry = { id: null, kind: 'folder', name: 'Netclip', bytes: 0, created_at: 0, updated_at: 0 }
+  const canonical = []
+  for (const name of names) {
+    if (entry.kind !== 'folder') throw new HttpError(404, 'Folder not found')
+    entry = db.prepare('SELECT * FROM drive_entries WHERE parent_id IS ? AND name = ? COLLATE NOCASE').get(entry.id, name)
+    if (!entry) throw new HttpError(404, 'File or folder not found')
+    canonical.push(entry.name)
+  }
+  return { entry, names: canonical }
+}
 const dto = (r) => ({ id: r.id, parentId: r.parent_id, kind: r.kind, name: r.name,
   bytes: r.bytes, createdAt: r.created_at, updatedAt: r.updated_at })
 const idOf = (value) => {

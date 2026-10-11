@@ -4,6 +4,7 @@ import { dirname, resolve } from 'node:path'
 import { config } from './config.js'
 import { handleApi } from './routes.js'
 import { handleDrive } from './drive.js'
+import { handleWebDav } from './webdav.js'
 import { HttpError, json, serveStatic } from './http.js'
 import { startSweeper, startup } from './cleanup.js'
 import { closeAll } from './events.js'
@@ -20,6 +21,10 @@ const server = createServer(async (req, res) => {
   }
 
   try {
+    if (url.pathname === '/dav' || url.pathname.startsWith('/dav/')) {
+      await handleWebDav(req, res, url)
+      return
+    }
     if (url.pathname.startsWith('/api/drive/')) {
       await handleDrive(req, res, url)
       return

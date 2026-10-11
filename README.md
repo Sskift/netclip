@@ -77,6 +77,21 @@ netclip clipboard download 123 --to ./downloads
 
 Use `--json` for machine-readable success output and errors; failures return a nonzero exit code. Multi-file operations report completed entries if a later operation fails. Remote entries can be addressed by absolute paths or `id:123`. `netclip --help` lists all commands, including pin/unpin and deletion. `drive rm` deletes a folder and its contents.
 
+### Mount Drive in Finder
+
+Netclip exposes a **read-only WebDAV volume** at `/dav/`. On macOS, mount it with the CLI:
+
+```sh
+netclip drive mount
+# Optional: choose an empty mount directory.
+netclip drive mount --to ~/Netclip
+netclip drive unmount
+```
+
+The default location is `~/Netclip`. Finder and native Open/file-upload dialogs can browse the mounted volume and select files directly. Files are fetched and cached by macOS when opened; no manual download or full-drive synchronization is needed. Uploads, renames and deletions still use the Netclip UI or CLI.
+
+Alternatively, in Finder choose **Go → Connect to Server** (`⌘K`) and enter `http://100.106.235.95:3210/dav/` (replace the host for your instance). See [Apple's WebDAV connection guide](https://support.apple.com/en-lamr/guide/mac-help/mchlp1546/mac). The server requires no Netclip password. Keep Tailscale connected when using the tailnet address. After a reboot or a disconnected mount, rerun `netclip drive mount`; running it again while already mounted is harmless. The command uses macOS's built-in WebDAV client and needs no extra driver.
+
 ### Agent skill
 
 The lightweight [Netclip skill](skills/netclip/SKILL.md) teaches an agent to use the CLI, select the correct execution device, reuse download bindings, and handle partial batches. To install it for Codex:

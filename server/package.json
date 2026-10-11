@@ -9,6 +9,7 @@
     "dev": "node --watch src/index.js"
   },
   "dependencies": {
+    "saxes": "^6.0.0",
     "sharp": "^0.34.2",
     "yazl": "^3.3.1"
   }

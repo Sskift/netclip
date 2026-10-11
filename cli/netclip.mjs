@@ -6,6 +6,8 @@ import { basename, dirname, extname, join, resolve } from 'node:path'
 import { pipeline } from 'node:stream/promises'
 import { parseArgs } from 'node:util'
 import { randomUUID } from 'node:crypto'
+import { execFile } from 'node:child_process'
+import { promisify } from 'node:util'
 
 const HELP = `Netclip — shared clipboard and Drive CLI (Node 22+; no dependencies)
 
@@ -15,6 +17,8 @@ const HELP = `Netclip — shared clipboard and Drive CLI (Node 22+; no dependenc
   netclip drive mkdir PATH                   Create folders, including parents
   netclip drive upload LOCAL... --to PATH    Upload files or whole folder trees
   netclip drive download PATH... [--to DIR]  Download files/folders, retaining structure
+  netclip drive mount [--to DIR]            Mount a read-only macOS volume (~/Netclip)
+  netclip drive unmount [--to DIR]          Eject the macOS volume
   netclip drive bind PATH LOCAL_DIR          Remember this folder's download directory
   netclip drive unbind PATH                  Remove a folder's download binding
   netclip drive bindings                     List bindings for the active server
@@ -202,7 +206,29 @@ async function uploadPath(path, parentId, remote) {
     } finally { source.destroy() }
   }
 }
+async function mountDrive(command) {
+  if (process.platform !== 'darwin') throw new Error('This mount command requires macOS. Connect a WebDAV client to ' + base + '/dav/')
+  const run = promisify(execFile), url = base + '/dav/', directory = localPath(options.to || join(homedir(), 'Netclip'))
+  if (/[\r\n]/.test(directory)) throw new Error('The mount directory cannot contain line breaks')
+  const { stdout } = await run('/sbin/mount', [])
+  const mounted = stdout.split('\n').find(line => line.includes(` on ${directory} (`))
+  if (mounted && !mounted.startsWith(`${url} on `)) throw new Error(`Another server is mounted at ${directory}`)
+  if (command === 'unmount') {
+    if (mounted) await run('/sbin/umount', [directory], { timeout: 30_000 })
+    return output({ server: base, directory, mounted: false })
+  }
+  if (!mounted) {
+    const response = await fetch(url, { method: 'OPTIONS', signal: AbortSignal.timeout(10_000) })
+    if (!response.ok || !response.headers.get('dav')) throw new Error('This server does not expose Netclip WebDAV. Update the server first.')
+    await mkdir(directory, { recursive: true })
+    const info = await lstat(directory)
+    if (!info.isDirectory() || info.isSymbolicLink() || (await readdir(directory)).length) throw new Error('Choose an empty directory for the mount')
+    await run('/sbin/mount_webdav', ['-S', '-v', 'Netclip', '-o', 'rdonly', url, directory], { timeout: 30_000 })
+  }
+  return output({ server: base, directory, mounted: true, readOnly: true })
+}
 async function drive(command, operands) {
+  if (command === 'mount' || command === 'unmount') return mountDrive(command)
   if (!['ls', 'tree', 'mkdir', 'download', 'bind', 'unbind', 'bindings', 'rename', 'move', 'rm'].includes(command)) throw new Error(`Unknown Drive command: ${command}`)
   if (command === 'bindings') return output({ server: base, bindings: bindings() })
   const chain = await locate(operands[0] || (['ls', 'tree'].includes(command) ? '/' : required(null, 'Remote path')), command === 'mkdir')
