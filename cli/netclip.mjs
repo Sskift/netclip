@@ -5,8 +5,8 @@ import { homedir } from 'node:os'
 import { basename, dirname, extname, join, resolve } from 'node:path'
 import { pipeline } from 'node:stream/promises'
 import { parseArgs } from 'node:util'
-import { randomUUID } from 'node:crypto'
-import { execFile } from 'node:child_process'
+import { randomUUID, createHash } from 'node:crypto'
+import { execFile, spawn } from 'node:child_process'
 import { promisify } from 'node:util'
 
 const HELP = `Netclip — shared clipboard and Drive CLI (Node 22+; no dependencies)
@@ -17,8 +17,10 @@ const HELP = `Netclip — shared clipboard and Drive CLI (Node 22+; no dependenc
   netclip drive mkdir PATH                   Create folders, including parents
   netclip drive upload LOCAL... --to PATH    Upload files or whole folder trees
   netclip drive download PATH... [--to DIR]  Download files/folders, retaining structure
-  netclip drive mount [--to DIR]            Mount a read-only macOS volume (~/Netclip)
+  netclip drive mount [--to DIR]            Mount macOS Drive with on-demand downloads
   netclip drive unmount [--to DIR]          Eject the macOS volume
+  netclip drive status [--to DIR]           Show mount and cache policy
+  netclip drive refresh [--to DIR]          Refresh the mounted directory index
   netclip drive bind PATH LOCAL_DIR          Remember this folder's download directory
   netclip drive unbind PATH                  Remove a folder's download binding
   netclip drive bindings                     List bindings for the active server
@@ -33,7 +35,7 @@ const HELP = `Netclip — shared clipboard and Drive CLI (Node 22+; no dependenc
   netclip clipboard pin|unpin|rm ID...       Manage clipboard history
 
 Options: --json, --url URL, --config FILE, --to DIR, --query TEXT, --help
-Environment: NETCLIP_URL, NETCLIP_CONFIG
+Environment: NETCLIP_URL, NETCLIP_CONFIG, NETCLIP_RCLONE (macOS mount helper)
 Remote paths start at /; use id:123 to address an entry by ID.
 Downloads use --to, the nearest bound folder, or ~/Downloads/Netclip.
 Bindings are local to this machine and server, survive remote renames, and apply
@@ -207,28 +209,109 @@ async function uploadPath(path, parentId, remote) {
   }
 }
 async function mountDrive(command) {
-  if (process.platform !== 'darwin') throw new Error('This mount command requires macOS. Connect a WebDAV client to ' + base + '/dav/')
+  if (process.platform !== 'darwin') throw new Error('This mount command requires macOS')
   const run = promisify(execFile), url = base + '/dav/', directory = localPath(options.to || join(homedir(), 'Netclip'))
   if (/[\r\n]/.test(directory)) throw new Error('The mount directory cannot contain line breaks')
-  const { stdout } = await run('/sbin/mount', [])
-  const mounted = stdout.split('\n').find(line => line.includes(` on ${directory} (`))
-  if (mounted && !mounted.startsWith(`${url} on `)) throw new Error(`Another server is mounted at ${directory}`)
-  if (command === 'unmount') {
+  const key = createHash('sha256').update(directory).digest('hex').slice(0, 16)
+  const stateDir = join(dirname(configPath), 'mounts'), stateFile = join(stateDir, key + '.json')
+  const cacheDirectory = join(homedir(), 'Library', 'Caches', 'Netclip', 'mounts', key)
+  const logFile = join(stateDir, key + '.log')
+  const signal = (pid, name) => { try { process.kill(pid, name) } catch (error) { if (error.code !== 'ESRCH') throw error } }
+  const mountLine = async () => (await run('/sbin/mount', [])).stdout.split('\n').find(line => line.includes(` on ${directory} (`))
+  let state
+  try { state = JSON.parse(await readFile(stateFile, 'utf8')) } catch (error) { if (error.code !== 'ENOENT') throw error }
+  let running = false
+  if (state?.directory === directory && Number.isSafeInteger(state.pid) && state.pid > 1) {
+    const ps = await run('/bin/ps', ['-p', String(state.pid), '-o', 'command=']).catch(() => ({ stdout: '' }))
+    running = ps.stdout.includes(` nfsmount :webdav: ${directory} --webdav-url ${state.server}/dav/ `)
+  }
+  const stopHelper = async () => {
+    if (!running) return
+    signal(state.pid, 'SIGTERM')
+    for (let attempt = 0; attempt < 50; attempt++) {
+      const ps = await run('/bin/ps', ['-p', String(state.pid), '-o', 'command=']).catch(() => ({ stdout: '' }))
+      if (!ps.stdout.includes(` nfsmount :webdav: ${directory} --webdav-url ${state.server}/dav/ `)) { running = false; return }
+      await new Promise(resolve => setTimeout(resolve, 200))
+    }
+    throw new Error(`The old mount helper is still stopping; retry in a moment`)
+  }
+  let mounted = await mountLine()
+  const legacy = mounted?.startsWith(`${url} on `) && mounted.includes('(webdav,')
+  const owned = running && state.server === base && mounted?.startsWith('localhost:/ on ') && mounted.includes('(nfs,')
+  const report = () => output({ server: base, directory, mounted: Boolean(mounted), readOnly: true,
+    contentCache: owned || (running && mounted) ? 'on-demand' : legacy ? 'macOS-managed' : null,
+    cacheTargetBytes: 268435456, activeFilesMayExceedTarget: true, cacheIdleSeconds: 30, cacheSweepSeconds: 10,
+    directoryCacheSeconds: 30, readBufferBytes: 0, cacheDirectory, logFile })
+  if (mounted && !legacy && !owned) throw new Error(`Another mount is using ${directory}`)
+  if (command === 'status') return report()
+  if (command === 'refresh') {
+    if (!owned) throw new Error('Mount Drive first with netclip drive mount')
+    signal(state.pid, 'SIGHUP')
+    return output({ server: base, directory, refreshed: true })
+  }
+  if (command === 'unmount' || legacy) {
     if (mounted) await run('/sbin/umount', [directory], { timeout: 30_000 })
-    return output({ server: base, directory, mounted: false })
+    await stopHelper()
+    await rm(stateFile, { force: true })
+    await rm(cacheDirectory, { recursive: true, force: true })
+    mounted = undefined; running = false
+    if (command === 'unmount') return report()
   }
-  if (!mounted) {
-    const response = await fetch(url, { method: 'OPTIONS', signal: AbortSignal.timeout(10_000) })
-    if (!response.ok || !response.headers.get('dav')) throw new Error('This server does not expose Netclip WebDAV. Update the server first.')
-    await mkdir(directory, { recursive: true })
-    const info = await lstat(directory)
-    if (!info.isDirectory() || info.isSymbolicLink() || (await readdir(directory)).length) throw new Error('Choose an empty directory for the mount')
-    await run('/sbin/mount_webdav', ['-S', '-v', 'Netclip', '-o', 'rdonly', url, directory], { timeout: 30_000 })
+  if (owned) return report()
+  // Finder may have ejected the volume while its local NFS helper is still alive.
+  await stopHelper()
+  let rclone = process.env.NETCLIP_RCLONE || join(homedir(), '.local', 'bin', 'rclone')
+  try { await run(rclone, ['version']) }
+  catch (error) {
+    if (process.env.NETCLIP_RCLONE || error.code !== 'ENOENT') throw error
+    rclone = 'rclone'
+    try { await run(rclone, ['version']) }
+    catch { throw new Error('Install the official macOS rclone binary in ~/.local/bin/rclone first. See the README Mount Drive section.') }
   }
-  return output({ server: base, directory, mounted: true, readOnly: true })
+  const response = await fetch(url, { method: 'OPTIONS', signal: AbortSignal.timeout(10_000) })
+  if (!response.ok || !response.headers.get('dav')) throw new Error('This server does not expose Netclip WebDAV. Update the server first.')
+  await mkdir(directory, { recursive: true })
+  const info = await lstat(directory)
+  if (!info.isDirectory() || info.isSymbolicLink() || (await readdir(directory)).length) throw new Error('Choose an empty directory for the mount')
+  await rm(cacheDirectory, { recursive: true, force: true }) // Discard only this read-only mount's cache from a previous run.
+  await mkdir(stateDir, { recursive: true, mode: 0o700 })
+  const child = spawn(rclone, ['nfsmount', ':webdav:', directory, '--webdav-url', url,
+    '--webdav-vendor', 'other', '--config', '/dev/null', '--read-only',
+    '--vfs-cache-mode', 'full', '--cache-dir', cacheDirectory, '--nfs-cache-type', 'memory',
+    '--vfs-cache-max-size', '256M', '--vfs-cache-max-age', '30s', '--vfs-cache-poll-interval', '10s',
+    '--vfs-cache-min-free-space', '2G', '--vfs-read-ahead', '0',
+    '--buffer-size', '0', '--vfs-read-chunk-size', '1M', '--vfs-read-chunk-size-limit', '1M',
+    '--dir-cache-time', '30s', '--poll-interval', '0', '--addr', '127.0.0.1:0',
+    '--contimeout', '10s', '--timeout', '30s', '--low-level-retries', '2',
+    '-o', 'ro,nosuid,nodev,noexec,soft,nolocks,rsize=262144,readahead=0,timeo=100,retrans=3,actimeo=1',
+    '--log-file', logFile, '--log-level', 'ERROR', '--log-file-max-size', '1M', '--log-file-max-backups', '1'],
+  { detached: true, stdio: 'ignore' })
+  let failure
+  child.on('error', error => { failure = error })
+  child.on('exit', code => { failure ||= new Error(`Mount helper exited (${code}); see ${logFile}`) })
+  child.unref()
+  try {
+    await new Promise((resolve, reject) => { child.once('spawn', resolve); child.once('error', reject) })
+    state = { server: base, directory, pid: child.pid }
+    await writeFile(stateFile, JSON.stringify(state) + '\n', { mode: 0o600 })
+    for (let attempt = 0; attempt < 60; attempt++) {
+      if (failure) throw failure
+      mounted = await mountLine()
+      if (mounted?.startsWith('localhost:/ on ') && mounted.includes('(nfs,')) {
+        running = true
+        return report()
+      }
+      await new Promise(resolve => setTimeout(resolve, 500))
+    }
+    throw new Error(`Mount timed out; see ${logFile}`)
+  } catch (error) {
+    child.kill('SIGTERM')
+    await rm(stateFile, { force: true })
+    throw error
+  }
 }
 async function drive(command, operands) {
-  if (command === 'mount' || command === 'unmount') return mountDrive(command)
+  if (['mount', 'unmount', 'status', 'refresh'].includes(command)) return mountDrive(command)
   if (!['ls', 'tree', 'mkdir', 'download', 'bind', 'unbind', 'bindings', 'rename', 'move', 'rm'].includes(command)) throw new Error(`Unknown Drive command: ${command}`)
   if (command === 'bindings') return output({ server: base, bindings: bindings() })
   const chain = await locate(operands[0] || (['ls', 'tree'].includes(command) ? '/' : required(null, 'Remote path')), command === 'mkdir')

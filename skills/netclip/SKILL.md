@@ -33,7 +33,9 @@ Uploads and downloads handle complete folder trees, including empty folders. Exi
 
 For a requested single ZIP, the web UI offers **Download ZIP**, and the API provides `GET /api/drive/download?ids=1,2,3` or `GET /api/drive/entries/123/download` for a folder. The CLI's `drive download` writes the folder tree directly rather than a ZIP.
 
-On macOS, `netclip drive mount --json` mounts the server's read-only WebDAV volume at `~/Netclip` for Finder, native file pickers and filesystem reads. Use `--to DIR` for another empty mount point and `drive unmount` to eject it. Mounting again reuses the existing connection; reconnect after reboot or a dropped mount. Opening a file transfers its bytes on demand and requires network access. Use the UI or CLI for writes; this mount does not synchronize an offline copy.
+On macOS, `netclip drive mount --json` exposes a read-only volume at `~/Netclip` using rclone's local NFS bridge with on-demand downloads. It needs the official rclone binary at `~/.local/bin/rclone`, on PATH, or in `NETCLIP_RCLONE`. Use `--to DIR` for another empty mount point, `drive status --json` to inspect the policy, `drive refresh` to invalidate the 30-second in-memory directory index, and `drive unmount` to eject, stop its helper and clear its temporary cache. Reconnect after reboot or ejecting the volume.
+
+Directory browsing fetches metadata. Only file bytes requested by applications enter the temporary content cache, with read-ahead disabled. Inactive data expires after 30 seconds with 10-second cleanup checks; 256 MiB is an eviction target, not a hard cap while files are in use. Finder previews may read bytes before selection, and applications can keep their own temporary files. Do not claim zero disk use or delete application caches automatically. Use `drive download` for an explicitly retained local copy and the UI or CLI for writes. Do not switch to Finder's direct WebDAV connection when this automatic-cleanup policy matters.
 
 ## Download directory bindings
 
