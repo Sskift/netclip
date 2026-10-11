@@ -1,0 +1,3 @@
+interface:
+  display_name: "Netclip"
+  short_description: "Manage shared clipboard and Drive with the CLI"

@@ -77,6 +77,17 @@ netclip clipboard download 123 --to ./downloads
 
 Use `--json` for machine-readable success output and errors; failures return a nonzero exit code. Multi-file operations report completed entries if a later operation fails. Remote entries can be addressed by absolute paths or `id:123`. `netclip --help` lists all commands, including pin/unpin and deletion. `drive rm` deletes a folder and its contents.
 
+### Agent skill
+
+The lightweight [Netclip skill](skills/netclip/SKILL.md) teaches an agent to use the CLI, select the correct execution device, reuse download bindings, and handle partial batches. To install it for Codex:
+
+```sh
+mkdir -p ~/.codex/skills/netclip
+cp -R skills/netclip/. ~/.codex/skills/netclip/
+```
+
+Invoke `$netclip` with a request such as “Upload this folder to Netclip Drive” or “Download my Projects folder using its saved local destination.” The skill uses the CLI above; it does not add a background service.
+
 ### Download directories per Drive folder
 
 ```sh
