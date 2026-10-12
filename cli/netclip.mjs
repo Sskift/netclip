@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { createReadStream, createWriteStream } from 'node:fs'
-import { readFile, writeFile, mkdir, rename, rm, lstat, readdir } from 'node:fs/promises'
+import { readFile, writeFile, appendFile, mkdir, rename, rm, lstat, readdir } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { basename, dirname, extname, join, resolve } from 'node:path'
 import { pipeline } from 'node:stream/promises'
@@ -208,9 +208,20 @@ async function uploadPath(path, parentId, remote) {
     } finally { source.destroy() }
   }
 }
-async function mountDrive(command) {
+async function mountDrive(command, previousDirectory) {
   if (process.platform !== 'darwin') throw new Error('This mount command requires macOS')
-  const run = promisify(execFile), url = base + '/dav/', directory = localPath(options.to || join(homedir(), 'Netclip'))
+  const run = promisify(execFile), url = base + '/dav/'
+  const entryDirectory = join(homedir(), 'Netclip')
+  // Keep the Favorites entry on the local disk; a bookmark to the NFS volume
+  // becomes unresolvable after ejecting or remounting that volume.
+  const directory = previousDirectory || localPath(options.to || join(entryDirectory, 'Drive'))
+  if (command === 'mount' && !options.to && !previousDirectory) {
+    const oldKey = createHash('sha256').update(entryDirectory).digest('hex').slice(0, 16)
+    let oldState
+    try { oldState = JSON.parse(await readFile(join(dirname(configPath), 'mounts', oldKey + '.json'), 'utf8')) }
+    catch (error) { if (error.code !== 'ENOENT') throw error }
+    if (oldState?.directory === entryDirectory) await mountDrive('unmount', entryDirectory)
+  }
   if (/[\r\n]/.test(directory)) throw new Error('The mount directory cannot contain line breaks')
   const key = createHash('sha256').update(directory).digest('hex').slice(0, 16)
   const stateDir = join(dirname(configPath), 'mounts'), stateFile = join(stateDir, key + '.json')
@@ -220,12 +231,14 @@ async function mountDrive(command) {
   const mountLine = async () => (await run('/sbin/mount', [])).stdout.split('\n').find(line => line.includes(` on ${directory} (`))
   let state
   try { state = JSON.parse(await readFile(stateFile, 'utf8')) } catch (error) { if (error.code !== 'ENOENT') throw error }
-  let running = false
-  if (state?.directory === directory && Number.isSafeInteger(state.pid) && state.pid > 1) {
+  const helperRunning = async () => {
+    if (state?.directory !== directory || !Number.isSafeInteger(state.pid) || state.pid <= 1) return false
     const ps = await run('/bin/ps', ['-p', String(state.pid), '-o', 'command=']).catch(() => ({ stdout: '' }))
-    running = ps.stdout.includes(` nfsmount :webdav: ${directory} --webdav-url ${state.server}/dav/ `)
+    return ps.stdout.includes(` nfsmount :webdav: ${directory} --webdav-url ${state.server}/dav/ `)
   }
+  let running = await helperRunning()
   const stopHelper = async () => {
+    running = await helperRunning()
     if (!running) return
     signal(state.pid, 'SIGTERM')
     for (let attempt = 0; attempt < 50; attempt++) {
@@ -238,10 +251,49 @@ async function mountDrive(command) {
   let mounted = await mountLine()
   const legacy = mounted?.startsWith(`${url} on `) && mounted.includes('(webdav,')
   const owned = running && state.server === base && mounted?.startsWith('localhost:/ on ') && mounted.includes('(nfs,')
-  const report = () => output({ server: base, directory, mounted: Boolean(mounted), readOnly: true,
-    contentCache: owned || (running && mounted) ? 'on-demand' : legacy ? 'macOS-managed' : null,
+  const report = () => previousDirectory ? undefined : output({ server: base, directory, mounted: Boolean(mounted), helperRunning: running, readOnly: true,
+    disconnectedReason: state?.disconnectedReason || null,
+    contentCache: running && mounted ? 'on-demand' : mounted && legacy ? 'macOS-managed' : null,
     cacheTargetBytes: 268435456, activeFilesMayExceedTarget: true, cacheIdleSeconds: 30, cacheSweepSeconds: 10,
     directoryCacheSeconds: 30, readBufferBytes: 0, cacheDirectory, logFile })
+  if (command === '_guard') {
+    if (state?.directory !== directory || state.server !== base || !Number.isSafeInteger(state.pid) || state.pid <= 1) return
+    const pid = state.pid
+    const sameMount = async () => {
+      try { return JSON.parse(await readFile(stateFile, 'utf8')).pid === pid }
+      catch (error) { if (error.code === 'ENOENT') return false; throw error }
+    }
+    let failures = 0
+    while (await sameMount()) {
+      await new Promise(resolve => setTimeout(resolve, 5_000))
+      if (!await sameMount()) return
+      mounted = await mountLine()
+      if (mounted && (!mounted.startsWith('localhost:/ on ') || !mounted.includes('(nfs,') || !mounted.includes('read-only'))) return
+      running = await helperRunning()
+      if (mounted) {
+        try {
+          if (!running) throw new Error('Mount helper stopped')
+          const response = await fetch(url, { method: 'PROPFIND', headers: { Depth: '0' }, signal: AbortSignal.timeout(3_000) })
+          await response.body?.cancel()
+          if (response.status !== 207) throw new Error('Drive is unavailable')
+          failures = 0
+        } catch { failures++ }
+        if (running && failures < 2) continue
+        if (!await sameMount()) return
+        // macOS can repeatedly retry NFS directory errors even on a soft mount.
+        // Detach only this read-only volume so an outage cannot trap Finder.
+        await run('/sbin/umount', ['-f', directory], { timeout: 10_000 })
+      }
+      await stopHelper()
+      if (!await sameMount()) return
+      await rm(cacheDirectory, { recursive: true, force: true })
+      const disconnectedReason = failures ? 'Drive disconnected. Check the connection, then run netclip drive mount.' : 'Volume ejected. Run netclip drive mount to reconnect.'
+      await writeFile(stateFile, JSON.stringify({ server: base, directory, disconnectedReason }) + '\n', { mode: 0o600 })
+      await appendFile(logFile, `${new Date().toISOString()} ${disconnectedReason}\n`)
+      return
+    }
+    return
+  }
   if (mounted && !legacy && !owned) throw new Error(`Another mount is using ${directory}`)
   if (command === 'status') return report()
   if (command === 'refresh') {
@@ -277,12 +329,13 @@ async function mountDrive(command) {
   await mkdir(stateDir, { recursive: true, mode: 0o700 })
   const child = spawn(rclone, ['nfsmount', ':webdav:', directory, '--webdav-url', url,
     '--webdav-vendor', 'other', '--config', '/dev/null', '--read-only',
+    '--disable', 'About', // Finder's disk-space queries must not wait for the remote server.
     '--vfs-cache-mode', 'full', '--cache-dir', cacheDirectory, '--nfs-cache-type', 'memory',
     '--vfs-cache-max-size', '256M', '--vfs-cache-max-age', '30s', '--vfs-cache-poll-interval', '10s',
     '--vfs-cache-min-free-space', '2G', '--vfs-read-ahead', '0',
     '--buffer-size', '0', '--vfs-read-chunk-size', '1M', '--vfs-read-chunk-size-limit', '1M',
     '--dir-cache-time', '30s', '--poll-interval', '0', '--addr', '127.0.0.1:0',
-    '--contimeout', '10s', '--timeout', '30s', '--low-level-retries', '2',
+    '--contimeout', '3s', '--timeout', '10s', '--low-level-retries', '1',
     '-o', 'ro,nosuid,nodev,noexec,soft,nolocks,rsize=262144,readahead=0,timeo=100,retrans=3,actimeo=1',
     '--log-file', logFile, '--log-level', 'ERROR', '--log-file-max-size', '1M', '--log-file-max-backups', '1'],
   { detached: true, stdio: 'ignore' })
@@ -299,6 +352,9 @@ async function mountDrive(command) {
       mounted = await mountLine()
       if (mounted?.startsWith('localhost:/ on ') && mounted.includes('(nfs,')) {
         running = true
+        const guard = spawn(process.execPath, [process.argv[1], 'drive', '_guard', '--to', directory, '--url', base, '--config', configPath], { detached: true, stdio: 'ignore' })
+        await new Promise((resolve, reject) => { guard.once('spawn', resolve); guard.once('error', reject) })
+        guard.unref()
         return report()
       }
       await new Promise(resolve => setTimeout(resolve, 500))
@@ -311,7 +367,7 @@ async function mountDrive(command) {
   }
 }
 async function drive(command, operands) {
-  if (['mount', 'unmount', 'status', 'refresh'].includes(command)) return mountDrive(command)
+  if (['mount', 'unmount', 'status', 'refresh', '_guard'].includes(command)) return mountDrive(command)
   if (!['ls', 'tree', 'mkdir', 'download', 'bind', 'unbind', 'bindings', 'rename', 'move', 'rm'].includes(command)) throw new Error(`Unknown Drive command: ${command}`)
   if (command === 'bindings') return output({ server: base, bindings: bindings() })
   const chain = await locate(operands[0] || (['ls', 'tree'].includes(command) ? '/' : required(null, 'Remote path')), command === 'mkdir')

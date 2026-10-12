@@ -79,7 +79,7 @@ Use `--json` for machine-readable success output and errors; failures return a n
 
 ### Mount Drive in Finder
 
-On macOS, `netclip drive mount` exposes Drive at `~/Netclip` with **on-demand file reads and automatic temporary-cache cleanup**. Finder and native Open/upload dialogs can select files directly. The mount uses [rclone's NFS bridge](https://rclone.org/commands/rclone_nfsmount/) and the built-in macOS NFS client; no kernel extension or FUSE driver is needed.
+On macOS, `netclip drive mount` exposes Drive at `~/Netclip/Drive` with **on-demand file reads and automatic temporary-cache cleanup**. Finder and native Open/upload dialogs can browse this mount. The mount uses [rclone's NFS bridge](https://rclone.org/commands/rclone_nfsmount/) and the built-in macOS NFS client; no kernel extension or FUSE driver is needed.
 
 Install the official [macOS rclone binary](https://rclone.org/install/#macos-installation) (tested with 1.75.2) at `~/.local/bin/rclone` or on PATH. `NETCLIP_RCLONE` can point to another executable. Then run:
 
@@ -91,12 +91,16 @@ netclip drive unmount             # Eject, stop the helper and remove its tempor
 # Add --to ~/AnotherEmptyFolder to any mount command for another mount point.
 ```
 
+Add the local **`~/Netclip` folder** to Finder Favorites, then open **Drive** inside it. Keep the favorite on the local parent folder: a bookmark to the mounted network volume can stop resolving after an eject or remount and show "the original item can't be found". If upgrading from the old `~/Netclip` mount, `drive mount` moves it to `~/Netclip/Drive`; remove the old Netclip favorite and add the local parent folder again. No remote files are moved.
+
 - Directory entries and file metadata are cached in memory for 30 seconds. Listing directories does not download their file contents. This index is rebuilt after restarting the mount.
 - File bytes are downloaded only when an application reads them. The helper uses a sparse, on-demand VFS cache, with read-ahead disabled; it does not synchronize the whole Drive. Finder previews/thumbnails can request file bytes before the Open button is pressed.
 - Inactive file data expires after **30 seconds**, checked every **10 seconds**. The cache has a **256 MiB eviction target**, with least-recently-used inactive files removed first. These are not hard limits: active file handles can retain data and temporarily exceed the size target until released. An idle closed file normally disappears within about 40 seconds.
 - `drive unmount` removes this mount's temporary cache after stopping the helper; a fresh mount also clears leftovers from a prior interrupted run. Explicit `drive download` results and other applications' temporary files are separate and are not automatically deleted.
 - The mount is read-only. Use the UI or CLI for uploads, renames and deletions; use `drive download` when you want a retained local copy. File access requires the server connection, including Tailscale when using a tailnet address.
-- `drive status` reports the cache policy and paths. Helper logs rotate at 1 MiB with one backup. Rerun `drive mount` after reboot or an ejected mount.
+- `drive status` reports the mount, helper process, cache policy and paths. Helper logs rotate at 1 MiB with one backup. Rerun `drive mount` after reboot or an ejected mount. Use `drive unmount` to stop a helper left running after a Finder eject.
+- Disk-space queries are answered locally so Finder does not wait for the server merely to display a volume. Capacity shown by Finder is a placeholder. Remote requests use a 3-second connection timeout, a 10-second idle timeout and no low-level retries; unavailable files can still return an error, but unrelated Finder windows should remain usable.
+- A small mount guard checks root metadata every 5 seconds, with a 3-second timeout. After two consecutive failures, or if the helper exits, it detaches the read-only volume and clears its temporary cache to release Finder's pending requests. The local Favorites folder remains accessible. Run `drive mount` after reconnecting; this does not automatically reconnect or download files. `drive status` reports why the mount was detached. Ejecting in Finder also stops the remaining helper and clears the cache.
 
 The server's `/dav/` endpoint remains the transport. Do not use Finder's **Connect to Server** for this cache policy: Apple's direct WebDAV mount manages its own disk cache. The CLI migrates an older direct WebDAV mount at the chosen directory to the new mode.
 
