@@ -41,6 +41,18 @@ Each mount starts a guard that probes root metadata every 5 seconds with a 3-sec
 
 Directory browsing fetches metadata. Only file bytes requested by applications enter the temporary content cache, with read-ahead disabled. Inactive data expires after 30 seconds with 10-second cleanup checks; 256 MiB is an eviction target, not a hard cap while files are in use. Finder previews may read bytes before selection, and applications can keep their own temporary files. Do not claim zero disk use or delete application caches automatically. Use `drive download` for an explicitly retained local copy and the UI or CLI for writes. Do not switch to Finder's direct WebDAV connection when this automatic-cleanup policy matters.
 
+## Migrate an instance
+
+For a user-requested migration of all Drive and history data, use:
+
+~~~sh
+netclip migrate --from old-server --to new-server --json
+~~~
+
+The hosts are SSH aliases or user@host; local means the execution device, and --from defaults to local. Run on the computer that can SSH into both endpoints. The command defaults to existing Docker containers named netclip, manages their stop/restart state, and checks transferred data before switching the target. Override names with --source-container / --target-container. For native deployments, stop their processes first and specify --source-dir / --target-dir with --stopped; these paths belong to the respective endpoints. Check netclip migrate --help for requirements.
+
+Migration preserves the database and original IDs, files, history metadata and pins. Source data stays in place. A nonempty target is refused unless --replace is explicitly selected for the requested replacement; the old target data is retained at the reported backup path. This is whole-instance replacement, not a merge. Report the backup and any recovery errors; do not bypass migration locks or delete recovery data. Retention settings, client URL configuration and download bindings remain separate.
+
 ## Download directory bindings
 
 ```sh

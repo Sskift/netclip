@@ -77,6 +77,56 @@ netclip clipboard download 123 --to ./downloads
 
 Use `--json` for machine-readable success output and errors; failures return a nonzero exit code. Multi-file operations report completed entries if a later operation fails. Remote entries can be addressed by absolute paths or `id:123`. `netclip --help` lists all commands, including pin/unpin and deletion. `drive rm` deletes a folder and its contents.
 
+### Migrate Drive and history over SSH
+
+Run one command on a computer that can SSH into both hosts:
+
+~~~sh
+netclip migrate --from old-server --to new-server
+# Source is this computer when --from is omitted.
+netclip migrate --to user@new-server
+~~~
+
+Hosts can be aliases from your normal `~/.ssh/config`, `user@host`, or local. SSH must already work with a key or agent; the command uses batch mode and keeps normal host-key verification. Set custom ports, identity files and jump hosts in SSH config. Remote-to-remote data streams through the computer running the CLI, without saving a local archive; the two servers do not need to reach each other. Migration does not use the HTTP server URL.
+
+By default, both endpoints are existing Docker containers named netclip. Create the target deployment first, using the same or a compatible Netclip version, and ensure the SSH account can run Docker without a sudo prompt. The command uses each container's own image and mounted data volume, so remote hosts do not need Node installed separately. Override container names when needed:
+
+~~~sh
+netclip migrate --from old-server --to new-server \
+  --source-container old-netclip --target-container new-netclip
+
+# Explicitly replace a target that already has content, keeping its old data.
+netclip migrate --from old-server --to new-server --replace --json
+~~~
+
+The source is stopped while copying. The target keeps serving until the transfer has been verified, then stops briefly for the data switch. Containers that were running are restarted and checked through `/api/health`; containers that were stopped stay stopped. Each data directory must be one writable volume or bind mount owned by that instance, without nested mounts or another running container sharing it.
+
+The transfer preserves the SQLite database (including any WAL), every history record, original IDs, pin states, copy counts, timestamps, Drive folders, file bytes, attachments and thumbnails. It checks per-file SHA-256, SQLite integrity, foreign keys and referenced file sizes before switching the target. Unfinished clipboard uploads in `tmp/` are excluded. The source data remains in place; writes to the source after it restarts are separate from the migrated copy.
+
+An empty target, including a newly initialized empty Netclip database, works by default. A target with content requires `--replace`; this replaces its history and Drive together rather than merging them. Previous target data is kept under `.netclip-backup-<migration-id>-target` inside its data directory, and the exact path is printed in the result. Allow enough target disk space for both the incoming copy and existing data. Keep that backup until the new instance is confirmed.
+
+For deployments running directly on the host, stop their server processes first, then provide absolute data-directory paths and `--stopped`. Directory endpoints need Node.js 22.13 or later on PATH and read/write access to their directories. Paths are interpreted on their respective hosts; quote a remote ~/ path to avoid expanding it on the controlling computer. Docker and directory endpoints can be mixed:
+
+~~~sh
+netclip migrate --from old-server --to new-server \
+  --source-dir /srv/netclip/data --target-dir /srv/netclip/data --stopped
+
+netclip migrate --to new-server --source-dir "$PWD/data" --stopped
+~~~
+
+On ordinary transfer or validation failures, staging is removed and the original data is retained. A failed target switch or startup restores the previous target data and running state. If a host becomes unreachable during recovery, or the command is forcibly killed, the error/remaining `.netclip-migration-lock` directory identifies an incomplete migration: keep the affected service stopped and preserve the staging directory, backup and lock journal until recovery is completed. Do not delete those directories to bypass a lock.
+
+Deployment settings and local CLI configuration/bindings are not copied. The target keeps its own retention settings, so normal expiry and capacity cleanup apply when it starts. After choosing the target as your active instance, update clients with `netclip config http://NEW_HOST:3210`.
+
+Migration tests use temporary fixture data and a local SSH transport shim:
+
+~~~sh
+npm run test:migrate
+# Optional: real Docker lifecycle, data serving, backup and startup rollback.
+docker build -t netclip:migration-test .
+npm run test:migrate:docker
+~~~
+
 ### Mount Drive in Finder
 
 On macOS, `netclip drive mount` exposes Drive at `~/Netclip/Drive` with **on-demand file reads and automatic temporary-cache cleanup**. Finder and native Open/upload dialogs can browse this mount. The mount uses [rclone's NFS bridge](https://rclone.org/commands/rclone_nfsmount/) and the built-in macOS NFS client; no kernel extension or FUSE driver is needed.
@@ -308,7 +358,7 @@ npm run test:serve # :3299, data in /tmp/netclip-test
 npm test
 ```
 
-The test scripts create and delete data. Use only the disposable instance, not your live deployment. Individual scripts are available as `test:server`, `test:ui`, and `test:layout`; the layout script requires a Chromium installation, with `CHROME_PATH` pointing to its executable.
+The test scripts create and delete data. Use only the disposable instance, not your live deployment. Individual scripts are available as `test:migrate`, `test:server`, `test:ui`, and `test:layout`; the layout script requires a Chromium installation, with `CHROME_PATH` pointing to its executable.
 
 The server uses Node's built-in HTTP server and SQLite, plus `sharp` for clipboard images. The frontend uses React, Vite, and CSS without a component framework.
 
